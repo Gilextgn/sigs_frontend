@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* Bascule du dark mode pilotée par une classe .dark sur <html>
+   (plutôt que prefers-color-scheme), pour permettre un choix manuel
+   persistant côté utilisateur. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Palette "registre scolaire" — valeurs par défaut (clair) */
+  --color-paper: #F5F6FA;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #FAFBFD;
+  --color-ink: #1B2340;
+  --color-ink-soft: #545B78;
+  --color-primary: #2B4C7E;
+  --color-primary-dark: #1B335A;
+  --color-primary-soft: #E7ECF6;
+  --color-success: #2F8F6F;
+  --color-success-soft: #E4F3EE;
+  --color-danger: #B5502E;
+  --color-danger-soft: #F7E9E3;
+  --color-gold: #D9A441;
+  --color-gold-soft: #FBF1DD;
+  --color-border: #E3E5EE;
+
+  /* Sidebar & topbar — dégradé encre bleu (équivalent du vert SEWAR) */
+  --color-sidebar-from: #0E1E3C;
+  --color-sidebar-to: #1F3D6B;
+  --color-sidebar-accent: #63A4FF;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   THÈME SOMBRE — mêmes jetons sémantiques, valeurs différentes.
+   Tout composant utilisant bg-paper / text-ink / border-border etc.
+   bascule automatiquement, sans classes dark: à multiplier partout.
+   ══════════════════════════════════════════════════════════════ */
+.dark {
+  --color-paper: #0A1220;
+  --color-surface: #111B2E;
+  --color-surface-alt: #16233A;
+  --color-ink: #E9ECF6;
+  --color-ink-soft: #93A0C2;
+  --color-primary: #5C8AE0;
+  --color-primary-dark: #8FB0EC;
+  --color-primary-soft: rgba(92, 138, 224, 0.16);
+  --color-success: #4FBE93;
+  --color-success-soft: rgba(79, 190, 147, 0.14);
+  --color-danger: #E27E5E;
+  --color-danger-soft: rgba(226, 126, 94, 0.14);
+  --color-gold: #E7BD6C;
+  --color-gold-soft: rgba(231, 189, 108, 0.14);
+  --color-border: #223050;
+
+  --color-sidebar-from: #060B16;
+  --color-sidebar-to: #14294D;
+  --color-sidebar-accent: #63A4FF;
+
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    letter-spacing: -0.01em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-primary-soft);
+  }
+}
+
+@layer utilities {
+  .font-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes shine {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: var(--twinkle-min, 0.15); transform: scale(0.85); }
+  50% { opacity: var(--twinkle-max, 1); transform: scale(1.15); }
+}
+
+@keyframes drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-18px); }
+}

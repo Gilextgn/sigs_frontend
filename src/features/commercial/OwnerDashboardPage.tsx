@@ -1,0 +1,19 @@
+import { ArrowRight, BarChart3, CircleDollarSign, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { StatCard } from '@/shared/components/StatCard';
+import { useDashboardStatistics, useDashboardSummary } from '@/features/dashboard/useDashboardData';
+
+const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+
+export default function OwnerDashboardPage() {
+  const { data: summary, isLoading } = useDashboardSummary();
+  const { data: statistics } = useDashboardStatistics(30);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold tracking-[0.2em] text-primary uppercase">Espace propriétaire</p><h1 className="mt-2 font-display text-3xl font-semibold text-ink">Pilotage SIGS</h1><p className="mt-1 text-sm text-ink-soft">La santé opérationnelle de votre démonstration, en un regard.</p></div><Link to="/statistics" className="flex items-center gap-2 text-sm font-semibold text-primary">Ouvrir les statistiques <ArrowRight className="h-4 w-4" /></Link></div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><StatCard label="Élèves suivis" value={isLoading ? '—' : String(summary?.students ?? 0)} icon={BarChart3} accent="primary" /><StatCard label="Encaissé" value={isLoading ? '—' : `${currency.format(summary?.total_collected ?? 0)} XOF`} icon={CircleDollarSign} accent="success" /><StatCard label="Reste dû" value={isLoading ? '—' : `${currency.format(summary?.outstanding ?? 0)} XOF`} icon={ShieldCheck} accent="danger" /><StatCard label="Paiements / 30 j" value={String(statistics?.period_payment_count ?? 0)} icon={LockKeyhole} accent="gold" /></div>
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]"><article className="border border-border bg-surface p-5"><p className="text-xs font-semibold tracking-wide text-primary uppercase">Ce que vous pouvez vendre maintenant</p><h2 className="mt-2 font-display text-2xl font-semibold text-ink">Une solution de contrôle, pas seulement un logiciel.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-ink-soft">Montrez à une école comment un paiement devient un reçu, comment le reste dû se calcule et comment le responsable garde une trace de chaque opération.</p><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="border-t-2 border-success pt-3"><p className="font-semibold text-ink">Démontrer</p><p className="mt-1 text-xs text-ink-soft">Un parcours paiement complet.</p></div><div className="border-t-2 border-gold pt-3"><p className="font-semibold text-ink">Convertir</p><p className="mt-1 text-xs text-ink-soft">Un pilote de 30 jours.</p></div><div className="border-t-2 border-primary pt-3"><p className="font-semibold text-ink">Fidéliser</p><p className="mt-1 text-xs text-ink-soft">Support et sauvegardes inclus.</p></div></div></article><article className="border border-border bg-surface p-5"><p className="text-xs font-semibold tracking-wide text-primary uppercase">À connecter pour le SaaS</p><ul className="mt-4 space-y-4 text-sm"><li className="flex gap-3"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-gold" /><span><strong className="text-ink">Abonnements</strong><br /><span className="text-ink-soft">Plans, échéances et statut client.</span></span></li><li className="flex gap-3"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-gold" /><span><strong className="text-ink">Relances</strong><br /><span className="text-ink-soft">Email automatique avant et après échéance.</span></span></li><li className="flex gap-3"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-gold" /><span><strong className="text-ink">Paiement en ligne</strong><br /><span className="text-ink-soft">Un prestataire local ou international.</span></span></li></ul></article></div>
+    </div>
+  );
+}
