@@ -73,7 +73,7 @@ export default function PayrollPage() {
                     {currency.format(net)} XOF
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${entry.status === 'paid' ? 'bg-success-soft text-success' : 'bg-gold-soft text-gold'}`}>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${entry.status === 'paid' ? 'bg-success-soft text-success' : 'bg-gold-soft text-gold'}`}>
                       {entry.status === 'paid' ? 'Payée' : 'En attente'}
                     </span>
                   </td>

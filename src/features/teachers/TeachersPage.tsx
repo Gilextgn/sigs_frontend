@@ -82,7 +82,7 @@ export default function TeachersPage() {
                   {teacher.monthly_salary ? `${currency.format(Number(teacher.monthly_salary))} XOF` : '—'}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${teacher.status === 'active' ? 'bg-success-soft text-success' : 'bg-paper text-ink-soft'}`}>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${teacher.status === 'active' ? 'bg-success-soft text-success' : 'bg-paper text-ink-soft'}`}>
                     {teacher.status === 'active' ? 'Actif' : 'Inactif'}
                   </span>
                 </td>

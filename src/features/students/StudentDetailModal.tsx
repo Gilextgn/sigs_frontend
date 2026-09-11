@@ -1,20 +1,8 @@
 import { GraduationCap, Phone, User } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import type { StudentRow } from './useStudents';
-
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Actif',
-  transferred: 'Transféré',
-  graduated: 'Diplômé',
-  archived: 'Archivé',
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-success-soft text-success',
-  transferred: 'bg-gold-soft text-gold',
-  graduated: 'bg-primary-soft text-primary-dark',
-  archived: 'bg-danger-soft text-danger',
-};
+import { STUDENT_STATUS_LABELS, STUDENT_STATUS_TONES } from './studentStatus';
 
 const GENDER_LABELS: Record<string, string> = { F: 'Féminin', M: 'Masculin' };
 
@@ -44,9 +32,11 @@ export function StudentDetailModal({ student, onClose }: { student: StudentRow; 
             <p className="mt-0.5 text-base font-semibold text-ink">{student.full_name}</p>
             <p className="text-xs text-ink-soft">{student.class?.label ?? 'Aucune classe'}</p>
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[student.status] ?? 'bg-primary-soft text-primary-dark'}`}>
-            {STATUS_LABELS[student.status] ?? student.status}
-          </span>
+          <StatusBadge
+            label={STUDENT_STATUS_LABELS[student.status] ?? student.status}
+            tone={STUDENT_STATUS_TONES[student.status] ?? 'primary'}
+            className="shrink-0"
+          />
         </div>
 
         <div>

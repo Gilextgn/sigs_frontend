@@ -5,6 +5,7 @@ import { Field, inputClass } from '@/shared/components/Field';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectRow } from './useTeaching';
@@ -99,7 +100,7 @@ export default function SubjectsPage() {
               <tr key={subject.id} className="hover:bg-paper">
                 <td className="font-tabular px-4 py-3 text-ink-soft">{subject.code}</td>
                 <td className="px-4 py-3 font-medium text-ink">{subject.label}</td>
-                <td className="px-4 py-3"><span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">Active</span></td>
+                <td className="px-4 py-3"><StatusBadge tone="success" label="Active" /></td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
                     <button type="button" onClick={() => openEdit(subject)} className={editIconClass} aria-label="Modifier">

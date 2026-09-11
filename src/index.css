@@ -6,31 +6,35 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-display: "Fraunces", "Georgia", serif;
-  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  /* Inter (texte) + Plus Jakarta Sans (titres) : duo sans-serif de tableau
+     de bord, plus neutre et professionnel que le serif précédent. */
+  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Palette "registre scolaire" — valeurs par défaut (clair) */
-  --color-paper: #F5F6FA;
+  /* Palette "registre scolaire" — valeurs par défaut (clair).
+     Teintes plus franches que la version d'origine, sans partir sur du
+     saturé : les couleurs servent à signaler un statut, pas à décorer. */
+  --color-paper: #F4F6FB;
   --color-surface: #FFFFFF;
   --color-surface-alt: #FAFBFD;
-  --color-ink: #1B2340;
-  --color-ink-soft: #545B78;
-  --color-primary: #2B4C7E;
-  --color-primary-dark: #1B335A;
-  --color-primary-soft: #E7ECF6;
-  --color-success: #2F8F6F;
-  --color-success-soft: #E4F3EE;
-  --color-danger: #B5502E;
-  --color-danger-soft: #F7E9E3;
-  --color-gold: #D9A441;
-  --color-gold-soft: #FBF1DD;
-  --color-border: #E3E5EE;
+  --color-ink: #161D33;
+  --color-ink-soft: #5A6280;
+  --color-primary: #2557C7;
+  --color-primary-dark: #1A3F99;
+  --color-primary-soft: #E6EDFC;
+  --color-success: #12916A;
+  --color-success-soft: #E0F4EE;
+  --color-danger: #D14343;
+  --color-danger-soft: #FCE8E8;
+  --color-gold: #DB9A22;
+  --color-gold-soft: #FCF1DC;
+  --color-border: #E1E5F0;
 
-  /* Sidebar & topbar — dégradé encre bleu (équivalent du vert SEWAR) */
-  --color-sidebar-from: #0E1E3C;
-  --color-sidebar-to: #1F3D6B;
-  --color-sidebar-accent: #63A4FF;
+  /* Sidebar & topbar — dégradé encre bleu */
+  --color-sidebar-from: #101C3A;
+  --color-sidebar-to: #21458A;
+  --color-sidebar-accent: #5B9BFF;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -44,20 +48,20 @@
   --color-surface-alt: #16233A;
   --color-ink: #E9ECF6;
   --color-ink-soft: #93A0C2;
-  --color-primary: #5C8AE0;
-  --color-primary-dark: #8FB0EC;
-  --color-primary-soft: rgba(92, 138, 224, 0.16);
-  --color-success: #4FBE93;
-  --color-success-soft: rgba(79, 190, 147, 0.14);
-  --color-danger: #E27E5E;
-  --color-danger-soft: rgba(226, 126, 94, 0.14);
-  --color-gold: #E7BD6C;
-  --color-gold-soft: rgba(231, 189, 108, 0.14);
+  --color-primary: #6693F0;
+  --color-primary-dark: #93B5F7;
+  --color-primary-soft: rgba(102, 147, 240, 0.18);
+  --color-success: #3EC79A;
+  --color-success-soft: rgba(62, 199, 154, 0.16);
+  --color-danger: #F07070;
+  --color-danger-soft: rgba(240, 112, 112, 0.16);
+  --color-gold: #EFBB5A;
+  --color-gold-soft: rgba(239, 187, 90, 0.16);
   --color-border: #223050;
 
   --color-sidebar-from: #060B16;
-  --color-sidebar-to: #14294D;
-  --color-sidebar-accent: #63A4FF;
+  --color-sidebar-to: #16306B;
+  --color-sidebar-accent: #6BA6FF;
 
   color-scheme: dark;
 }

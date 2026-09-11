@@ -3,6 +3,7 @@ import { Pencil, Plus, School, Search, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useClasses, useDeleteClass, type SchoolClassRow } from './useClasses';
@@ -83,13 +84,10 @@ export default function ClassesPage() {
                   {currency.format(Number(schoolClass.tuition_amount))} XOF
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      schoolClass.is_active ? 'bg-success-soft text-success' : 'bg-paper text-ink-soft'
-                    }`}
-                  >
-                    {schoolClass.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <StatusBadge
+                    tone={schoolClass.is_active ? 'success' : 'neutral'}
+                    label={schoolClass.is_active ? 'Active' : 'Inactive'}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">

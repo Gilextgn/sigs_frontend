@@ -4,15 +4,16 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
+import { StatusBadge, type BadgeTone } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteUser, useUsers, type UserRow } from './useUsers';
 import { UserFormModal } from './UserFormModal';
 
-const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-success-soft text-success',
-  inactive: 'bg-paper text-ink-soft',
-  locked: 'bg-danger-soft text-danger',
+const STATUS_TONES: Record<string, BadgeTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  locked: 'danger',
 };
 const STATUS_LABELS: Record<string, string> = { active: 'Actif', inactive: 'Inactif', locked: 'Verrouillé' };
 
@@ -79,9 +80,10 @@ export default function UsersPage() {
                 <td className="px-4 py-3 text-ink-soft">{user.email}</td>
                 <td className="px-4 py-3 text-ink-soft">{user.role?.label ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[user.status]}`}>
-                    {STATUS_LABELS[user.status]}
-                  </span>
+                  <StatusBadge
+                    tone={STATUS_TONES[user.status] ?? 'neutral'}
+                    label={STATUS_LABELS[user.status] ?? user.status}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">

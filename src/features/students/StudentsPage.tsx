@@ -4,25 +4,13 @@ import { Eye, GraduationCap, Pencil, Search, Trash2, UserPlus } from 'lucide-rea
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
+import { StatusBadge } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass, viewIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteStudent, useStudents, type StudentRow } from './useStudents';
 import { StudentFormModal } from './StudentFormModal';
 import { StudentDetailModal } from './StudentDetailModal';
-
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Actif',
-  transferred: 'Transféré',
-  graduated: 'Diplômé',
-  archived: 'Archivé',
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  active: 'bg-success-soft text-success',
-  transferred: 'bg-gold-soft text-gold',
-  graduated: 'bg-primary-soft text-primary-dark',
-  archived: 'bg-danger-soft text-danger',
-};
+import { STUDENT_STATUS_LABELS, STUDENT_STATUS_TONES } from './studentStatus';
 
 export default function StudentsPage() {
   const [search, setSearch] = useState('');
@@ -111,9 +99,10 @@ export default function StudentsPage() {
                 <td className="px-4 py-3 text-ink-soft">{student.class?.label ?? '—'}</td>
                 <td className="px-4 py-3 text-ink-soft">{student.guardian?.full_name ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[student.status] ?? 'bg-primary-soft text-primary-dark'}`}>
-                    {STATUS_LABELS[student.status] ?? student.status}
-                  </span>
+                  <StatusBadge
+                    label={STUDENT_STATUS_LABELS[student.status] ?? student.status}
+                    tone={STUDENT_STATUS_TONES[student.status] ?? 'primary'}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
