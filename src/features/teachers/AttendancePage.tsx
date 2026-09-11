@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, ClipboardCheck, RefreshCcw, X } from 'lucide-react';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { useCreateAttendance, useGenerateSessions, useSessions } from './useTeaching';
 
 const statusOptions = [
@@ -132,7 +133,7 @@ export default function AttendancePage() {
         <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-paper text-xs uppercase text-ink-soft"><tr><th className="px-4 py-3">Horaire</th><th className="px-4 py-3">Classe</th><th className="px-4 py-3">Matière</th><th className="px-4 py-3">Enseignant</th><th className="px-4 py-3">Présence</th><th className="px-4 py-3" /></tr></thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <tr><td colSpan={6} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>}
+            {isLoading && <SkeletonTableRows columns={6} />}
             {!isLoading && (sessions ?? []).length === 0 && <tr><td colSpan={6} className="px-4 py-14 text-center"><ClipboardCheck className="mx-auto h-8 w-8 text-ink-soft" /><p className="mt-2 text-sm text-ink-soft">Aucune séance pour cette date. Cliquez sur “Générer les séances” pour créer le planning du jour.</p></td></tr>}
             {sessions?.map((session) => {
               const teacherId = session.assignment?.teacher?.id ?? 0;

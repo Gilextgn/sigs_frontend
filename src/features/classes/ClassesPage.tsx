@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, School, Search, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useClasses, useDeleteClass, type SchoolClassRow } from './useClasses';
@@ -61,9 +62,7 @@ export default function ClassesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>
-            )}
+            {isLoading && <SkeletonTableRows columns={6} />}
             {isError && (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-danger">Impossible de charger les classes.</td></tr>
             )}

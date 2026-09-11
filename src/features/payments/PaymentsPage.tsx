@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { viewIconClass, downloadIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { downloadPaymentReceiptPdf } from '@/shared/lib/pdf';
@@ -87,9 +88,7 @@ export default function PaymentsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>
-            )}
+            {isLoading && <SkeletonTableRows columns={7} />}
             {!isLoading && (data?.data.length ?? 0) === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-14 text-center">

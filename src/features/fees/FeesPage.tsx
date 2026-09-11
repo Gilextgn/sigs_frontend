@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonBlock } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteFeeType, useFeeTypes, type FeeTypeRow } from './useFeeTypes';
@@ -48,7 +49,14 @@ export default function FeesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {isLoading && <p className="text-sm text-ink-soft">Chargement...</p>}
+        {isLoading &&
+          Array.from({ length: 3 }).map((_, index) => (
+            <article key={index} className="space-y-3 rounded-xl border border-border bg-surface p-4">
+              <SkeletonBlock className="h-4 w-32" />
+              <SkeletonBlock className="h-5 w-24" />
+              <SkeletonBlock className="h-4 w-20" />
+            </article>
+          ))}
         {isError && <p className="text-sm text-danger">Impossible de charger les frais.</p>}
         {!isLoading && !isError && (data?.length ?? 0) === 0 && (
           <div className="col-span-full flex flex-col items-center rounded-xl border border-dashed border-border bg-surface py-14 text-center">

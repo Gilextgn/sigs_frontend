@@ -3,6 +3,7 @@ import { Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteTranche, useTranches, type TrancheRow } from './useTranches';
@@ -72,9 +73,7 @@ export default function TranchesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>
-            )}
+            {isLoading && <SkeletonTableRows columns={5} />}
             {isError && (
               <tr><td colSpan={5} className="px-4 py-10 text-center text-danger">Impossible de charger les tranches.</td></tr>
             )}

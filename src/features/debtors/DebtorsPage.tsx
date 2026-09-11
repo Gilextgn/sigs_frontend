@@ -5,6 +5,7 @@ import { useTranches } from '@/features/tranches/useTranches';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { viewIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { downloadDebtorsListPdf } from '@/shared/lib/pdf';
@@ -106,11 +107,7 @@ export default function DebtorsPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-ink-soft">
-                  Chargement...
-                </td>
-              </tr>
+              <SkeletonTableRows columns={8} />
             )}
             {!isLoading && (debtors ?? []).length === 0 && (
               <tr>

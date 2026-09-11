@@ -3,6 +3,7 @@ import { Pencil, Trash2, UserCog, UserPlus } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteUser, useUsers, type UserRow } from './useUsers';
@@ -63,9 +64,7 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>
-            )}
+            {isLoading && <SkeletonTableRows columns={5} />}
             {!isLoading && (data?.data.length ?? 0) === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-14 text-center">

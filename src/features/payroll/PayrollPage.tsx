@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Banknote, CheckCircle2, Eye, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useMarkPayrollPaid, usePayrollEntries, type PayrollEntryRow } from './usePayroll';
 import { PayrollFormModal } from './PayrollFormModal';
@@ -53,9 +54,7 @@ export default function PayrollPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>
-            )}
+            {isLoading && <SkeletonTableRows columns={5} />}
             {!isLoading && (data?.data.length ?? 0) === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-14 text-center">

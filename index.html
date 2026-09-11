@@ -21,9 +21,57 @@
         if (dark) document.documentElement.classList.add('dark');
       })();
     </script>
+    <!-- Styles du splash en ligne : le CSS du bundle n'est pas encore chargé
+         au premier paint, c'est précisément ce que cet écran doit couvrir. -->
+    <style>
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #f5f6fa;
+      }
+      html.dark #initial-loader { background: #0a1220; }
+      #initial-loader img { width: 56px; height: 56px; border-radius: 12px; }
+      #initial-loader .bar {
+        width: 132px;
+        height: 3px;
+        border-radius: 999px;
+        background: #e3e5ee;
+        overflow: hidden;
+      }
+      html.dark #initial-loader .bar { background: #223050; }
+      #initial-loader .bar::after {
+        content: '';
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 999px;
+        background: #2b4c7e;
+        animation: initial-loader-slide 1.1s ease-in-out infinite;
+      }
+      html.dark #initial-loader .bar::after { background: #5c8ae0; }
+      @keyframes initial-loader-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(330%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #initial-loader .bar::after { animation: none; width: 100%; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Placé dans #root : React remplace le contenu du conteneur au premier
+         rendu, le splash disparaît donc sans code de nettoyage. -->
+    <div id="root">
+      <div id="initial-loader">
+        <img src="/images/branding/logo-192.png" alt="SIGS" />
+        <div class="bar"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

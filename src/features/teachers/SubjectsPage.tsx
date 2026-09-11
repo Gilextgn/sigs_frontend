@@ -4,6 +4,7 @@ import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectRow } from './useTeaching';
@@ -85,7 +86,7 @@ export default function SubjectsPage() {
             <tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Matière</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3" /></tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <tr><td colSpan={4} className="px-4 py-10 text-center text-ink-soft">Chargement...</td></tr>}
+            {isLoading && <SkeletonTableRows columns={4} />}
             {!isLoading && (subjects ?? []).length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-14 text-center">
