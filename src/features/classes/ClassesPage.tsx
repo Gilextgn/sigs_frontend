@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Plus, School, Search, Trash2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
@@ -12,6 +13,8 @@ import { ClassFormModal } from './ClassFormModal';
 const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function ClassesPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('classes.manage');
   const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<{ open: boolean; editing: SchoolClassRow | null }>({
     open: false,
@@ -40,13 +43,15 @@ export default function ClassesPage() {
             className="w-full rounded-lg border border-border bg-surface py-2 pr-3 pl-9 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <button
-          onClick={() => setModalState({ open: true, editing: null })}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle classe
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setModalState({ open: true, editing: null })}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle classe
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -91,20 +96,24 @@ export default function ClassesPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => setModalState({ open: true, editing: schoolClass })}
-                      className={editIconClass}
-                      aria-label="Modifier"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setToDelete(schoolClass)}
-                      className={deleteIconClass}
-                      aria-label="Supprimer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canManage && (
+                      <>
+                        <button
+                          onClick={() => setModalState({ open: true, editing: schoolClass })}
+                          className={editIconClass}
+                          aria-label="Modifier"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setToDelete(schoolClass)}
+                          className={deleteIconClass}
+                          aria-label="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
@@ -11,6 +12,8 @@ import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectRow } from './useTeaching';
 
 export default function SubjectsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('teachers.manage');
   const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<{ open: boolean; editing: SubjectRow | null }>({
     open: false,
@@ -73,9 +76,11 @@ export default function SubjectsPage() {
           <h1 className="mt-1 font-display text-2xl font-semibold text-ink">Matières</h1>
           <p className="mt-1 text-sm text-ink-soft">Gérez les matières utilisées dans les affectations et les emplois du temps.</p>
         </div>
-        <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
-          <Plus className="h-4 w-4" /> Nouvelle matière
-        </button>
+        {canManage && (
+          <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+            <Plus className="h-4 w-4" /> Nouvelle matière
+          </button>
+        )}
       </div>
 
       <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une matière..." className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
@@ -103,12 +108,16 @@ export default function SubjectsPage() {
                 <td className="px-4 py-3"><StatusBadge tone="success" label="Active" /></td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button type="button" onClick={() => openEdit(subject)} className={editIconClass} aria-label="Modifier">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button type="button" onClick={() => setToDelete(subject)} className={deleteIconClass} aria-label={`Désactiver ${subject.label}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canManage && (
+                      <>
+                        <button type="button" onClick={() => openEdit(subject)} className={editIconClass} aria-label="Modifier">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => setToDelete(subject)} className={deleteIconClass} aria-label={`Désactiver ${subject.label}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

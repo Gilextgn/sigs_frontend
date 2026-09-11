@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Layers, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { useClasses } from '@/features/classes/useClasses';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
@@ -19,6 +20,8 @@ function formatDate(value: string | null) {
 }
 
 export default function TranchesPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('tranches.manage');
   const [classId, setClassId] = useState<number | ''>('');
   const [modalState, setModalState] = useState<{ open: boolean; editing: TrancheRow | null }>({
     open: false,
@@ -51,13 +54,15 @@ export default function TranchesPage() {
             </option>
           ))}
         </select>
-        <button
-          onClick={() => setModalState({ open: true, editing: null })}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle tranche
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setModalState({ open: true, editing: null })}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle tranche
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -93,20 +98,24 @@ export default function TranchesPage() {
                 <td className="px-4 py-3 text-ink-soft">{formatDate(tranche.due_date)}</td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => setModalState({ open: true, editing: tranche })}
-                      className={editIconClass}
-                      aria-label="Modifier"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setToDelete(tranche)}
-                      className={deleteIconClass}
-                      aria-label="Supprimer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canManage && (
+                      <>
+                        <button
+                          onClick={() => setModalState({ open: true, editing: tranche })}
+                          className={editIconClass}
+                          aria-label="Modifier"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setToDelete(tranche)}
+                          className={deleteIconClass}
+                          aria-label="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>

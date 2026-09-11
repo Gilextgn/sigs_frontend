@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Trash2, UserPlus, Users2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
@@ -11,6 +12,8 @@ import { TeacherFormModal } from './TeacherFormModal';
 const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function TeachersPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('teachers.manage');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TeacherRow | null>(null);
@@ -44,10 +47,12 @@ export default function TeachersPage() {
           <option value="active">Actifs</option>
           <option value="inactive">Inactifs</option>
         </select>
-        <button onClick={openCreate} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
-          <UserPlus className="h-4 w-4" />
-          Nouvel enseignant
-        </button>
+        {canManage && (
+          <button onClick={openCreate} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+            <UserPlus className="h-4 w-4" />
+            Nouvel enseignant
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -88,12 +93,16 @@ export default function TeachersPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => openEdit(teacher)} className={editIconClass} aria-label="Modifier">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => setToDelete(teacher)} className={deleteIconClass} aria-label="Supprimer">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canManage && (
+                      <button onClick={() => openEdit(teacher)} className={editIconClass} aria-label="Modifier">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canManage && (
+                      <button onClick={() => setToDelete(teacher)} className={deleteIconClass} aria-label="Supprimer">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

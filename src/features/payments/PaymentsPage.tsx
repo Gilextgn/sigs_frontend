@@ -66,12 +66,14 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
-          <Plus className="h-4 w-4" />
-          Nouveau paiement
-        </button>
-      </div>
+      {hasPermission('payments.create') && (
+        <div className="flex justify-end">
+          <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+            <Plus className="h-4 w-4" />
+            Nouveau paiement
+          </button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="overflow-x-auto">

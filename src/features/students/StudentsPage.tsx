@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, GraduationCap, Pencil, Search, Trash2, UserPlus } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
@@ -13,6 +14,7 @@ import { StudentDetailModal } from './StudentDetailModal';
 import { STUDENT_STATUS_LABELS, STUDENT_STATUS_TONES } from './studentStatus';
 
 export default function StudentsPage() {
+  const { hasPermission } = useAuth();
   const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<{ open: boolean; editing: StudentRow | null }>({
     open: false,
@@ -53,13 +55,15 @@ export default function StudentsPage() {
             className="w-full rounded-lg border border-border bg-surface py-2 pr-3 pl-9 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <button
-          onClick={() => setModalState({ open: true, editing: null })}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-        >
-          <UserPlus className="h-4 w-4" />
-          Nouvel élève
-        </button>
+        {hasPermission('students.create') && (
+          <button
+            onClick={() => setModalState({ open: true, editing: null })}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+          >
+            <UserPlus className="h-4 w-4" />
+            Nouvel élève
+          </button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -109,12 +113,16 @@ export default function StudentsPage() {
                     <button onClick={() => setViewing(student)} className={viewIconClass} aria-label="Voir">
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setModalState({ open: true, editing: student })} className={editIconClass} aria-label="Modifier">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => setToDelete(student)} className={deleteIconClass} aria-label="Supprimer">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {hasPermission('students.update') && (
+                      <button onClick={() => setModalState({ open: true, editing: student })} className={editIconClass} aria-label="Modifier">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {hasPermission('students.delete') && (
+                      <button onClick={() => setToDelete(student)} className={deleteIconClass} aria-label="Supprimer">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

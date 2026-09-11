@@ -46,9 +46,9 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BookOpenCheck,
     children: [
       { code: 'students', label: 'Élèves', path: '/students', icon: GraduationCap, permission: 'students.view' },
-      { code: 'classes', label: 'Classes', path: '/classes', icon: School, permission: 'classes.manage' },
-      { code: 'tranches', label: 'Tranches', path: '/tranches', icon: Layers, permission: 'tranches.manage' },
-      { code: 'fees', label: 'Autres frais', path: '/fees', icon: Wallet, permission: 'fees.manage' },
+      { code: 'classes', label: 'Classes', path: '/classes', icon: School, permission: 'classes.view' },
+      { code: 'tranches', label: 'Tranches', path: '/tranches', icon: Layers, permission: 'tranches.view' },
+      { code: 'fees', label: 'Autres frais', path: '/fees', icon: Wallet, permission: 'fees.view' },
     ],
   },
   {
@@ -65,11 +65,11 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Ressources humaines',
     icon: Users2,
     children: [
-      { code: 'teachers', label: 'Enseignants', path: '/teachers', icon: Users2, permission: 'teachers.manage' },
-      { code: 'schedule', label: 'Emploi du temps', path: '/schedule', icon: CalendarDays, permission: 'teachers.manage' },
-      { code: 'attendance', label: 'Présence enseignants', path: '/attendance', icon: ClipboardCheck, permission: 'teachers.manage' },
-      { code: 'subjects', label: 'Matières', path: '/subjects', icon: BookOpen, permission: 'teachers.manage' },
-      { code: 'payroll', label: 'Paie', path: '/payroll', icon: Banknote, permission: 'teachers.manage' },
+      { code: 'teachers', label: 'Enseignants', path: '/teachers', icon: Users2, permission: 'teachers.view' },
+      { code: 'schedule', label: 'Emploi du temps', path: '/schedule', icon: CalendarDays, permission: 'teachers.view' },
+      { code: 'attendance', label: 'Présence enseignants', path: '/attendance', icon: ClipboardCheck, permission: 'teachers.view' },
+      { code: 'subjects', label: 'Matières', path: '/subjects', icon: BookOpen, permission: 'teachers.view' },
+      { code: 'payroll', label: 'Paie', path: '/payroll', icon: Banknote, permission: 'teachers.view' },
     ],
   },
   {
@@ -79,7 +79,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { code: 'users', label: 'Utilisateurs', path: '/users', icon: UserCog, permission: 'users.manage' },
       { code: 'security', label: 'Sécurité', path: '/security', icon: ShieldCheck, permission: 'audit.view' },
-      { code: 'settings', label: 'Paramètres', path: '/settings', icon: Settings, permission: 'settings.manage' },
+      { code: 'settings', label: 'Paramètres', path: '/settings', icon: Settings, permission: 'settings.view' },
     ],
   },
 ];

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonBlock } from '@/shared/components/Skeleton';
@@ -11,6 +12,8 @@ import { FeeFormModal } from './FeeFormModal';
 const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function FeesPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('fees.manage');
   const [search, setSearch] = useState('');
   const [modalState, setModalState] = useState<{ open: boolean; editing: FeeTypeRow | null }>({
     open: false,
@@ -39,13 +42,15 @@ export default function FeesPage() {
             className="w-full rounded-lg border border-border bg-surface py-2 pr-3 pl-9 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <button
-          onClick={() => setModalState({ open: true, editing: null })}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-        >
-          <Plus className="h-4 w-4" />
-          Nouveau frais
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setModalState({ open: true, editing: null })}
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau frais
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -71,22 +76,24 @@ export default function FeesPage() {
                 <p className="font-medium text-ink">{fee.label}</p>
                 {fee.category && <p className="text-xs text-ink-soft">{fee.category}</p>}
               </div>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  onClick={() => setModalState({ open: true, editing: fee })}
-                  className={editIconClass}
-                  aria-label="Modifier"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setToDelete(fee)}
-                  className={deleteIconClass}
-                  aria-label="Supprimer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+              {canManage && (
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => setModalState({ open: true, editing: fee })}
+                    className={editIconClass}
+                    aria-label="Modifier"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setToDelete(fee)}
+                    className={deleteIconClass}
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
             <p className="font-tabular mt-2 text-lg font-semibold text-ink">
               {currency.format(Number(fee.amount))} XOF
