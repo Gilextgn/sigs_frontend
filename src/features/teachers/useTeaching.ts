@@ -52,6 +52,10 @@ export function useCreateSubject() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: async (payload: { code: string; label: string }) => (await apiClient.post('/subjects', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
 }
+export function useUpdateSubject() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: async ({ id, payload }: { id: number; payload: { code: string; label: string } }) => (await apiClient.put(`/subjects/${id}`, payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
+}
 export function useDeleteSubject() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: async (id: number) => apiClient.delete(`/subjects/${id}`), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });

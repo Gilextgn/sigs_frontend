@@ -3,25 +3,30 @@ import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { useClasses } from '@/features/classes/useClasses';
-import { useCreateTranche, useTranches } from './useTranches';
+import { useCreateTranche, useUpdateTranche, useTranches, type TrancheRow } from './useTranches';
 
 const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
-export function TrancheFormModal({ onClose }: { onClose: () => void }) {
+export function TrancheFormModal({ editing, onClose }: { editing?: TrancheRow | null; onClose: () => void }) {
   const { data: classes } = useClasses();
-  const [classId, setClassId] = useState<string>('');
+  const [classId, setClassId] = useState<string>(editing ? String(editing.class_id) : '');
   const { data: existingTranches } = useTranches(classId ? Number(classId) : '');
   const createTranche = useCreateTranche();
+  const updateTranche = useUpdateTranche();
 
-  const [label, setLabel] = useState('');
-  const [amount, setAmount] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [label, setLabel] = useState(editing?.label ?? '');
+  const [amount, setAmount] = useState(editing?.amount ?? '');
+  const [dueDate, setDueDate] = useState(editing?.due_date ?? '');
   const [error, setError] = useState<string | null>(null);
+  const isSaving = createTranche.isPending || updateTranche.isPending;
 
   const selectedClass = classes?.find((c) => String(c.id) === classId);
   const alreadyPlanned = useMemo(
-    () => (existingTranches ?? []).reduce((sum, t) => sum + Number(t.amount), 0),
-    [existingTranches],
+    () =>
+      (existingTranches ?? [])
+        .filter((t) => t.id !== editing?.id)
+        .reduce((sum, t) => sum + Number(t.amount), 0),
+    [existingTranches, editing],
   );
   const ceiling = selectedClass ? Number(selectedClass.tuition_amount) : 0;
   const remaining = Math.max(ceiling - alreadyPlanned, 0);
@@ -29,13 +34,18 @@ export function TrancheFormModal({ onClose }: { onClose: () => void }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const payload = {
+      class_id: Number(classId),
+      label,
+      amount: Number(amount),
+      due_date: dueDate || undefined,
+    };
     try {
-      await createTranche.mutateAsync({
-        class_id: Number(classId),
-        label,
-        amount: Number(amount),
-        due_date: dueDate || undefined,
-      });
+      if (editing) {
+        await updateTranche.mutateAsync({ id: editing.id, payload });
+      } else {
+        await createTranche.mutateAsync(payload);
+      }
       onClose();
     } catch {
       setError('Le total des tranches ne doit jamais dépasser la scolarité de la classe.');
@@ -43,7 +53,7 @@ export function TrancheFormModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title="Nouvelle tranche" onClose={onClose}>
+    <Modal title={editing ? 'Modifier la tranche' : 'Nouvelle tranche'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
@@ -101,10 +111,10 @@ export function TrancheFormModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             type="submit"
-            disabled={createTranche.isPending || !classId}
+            disabled={isSaving || !classId}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
           >
-            {createTranche.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
       </form>

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GraduationCap, Search, UserPlus } from 'lucide-react';
+import { Eye, GraduationCap, Pencil, Search, Trash2, UserPlus } from 'lucide-react';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { editIconClass, deleteIconClass, viewIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
-import { useStudents } from './useStudents';
+import { useDeleteStudent, useStudents, type StudentRow } from './useStudents';
 import { StudentFormModal } from './StudentFormModal';
+import { StudentDetailModal } from './StudentDetailModal';
 
 const STATUS_LABELS: Record<string, string> = {
   active: 'Actif',
@@ -22,8 +25,14 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function StudentsPage() {
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<{ open: boolean; editing: StudentRow | null }>({
+    open: false,
+    editing: null,
+  });
+  const [viewing, setViewing] = useState<StudentRow | null>(null);
+  const [toDelete, setToDelete] = useState<StudentRow | null>(null);
   const { data, isLoading, isError } = useStudents({ search });
+  const deleteStudent = useDeleteStudent();
   const { pageRows, ...pagination } = usePaginatedRows(data?.data);
 
   const location = useLocation();
@@ -32,10 +41,16 @@ export default function StudentsPage() {
   // Permet au dashboard (bouton "Nouvel élève") d'ouvrir directement le formulaire.
   useEffect(() => {
     if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
-      setModalOpen(true);
+      setModalState({ open: true, editing: null });
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location, navigate]);
+
+  async function handleConfirmDelete() {
+    if (!toDelete) return;
+    await deleteStudent.mutateAsync(toDelete.id);
+    setToDelete(null);
+  }
 
   return (
     <div className="space-y-4">
@@ -50,7 +65,7 @@ export default function StudentsPage() {
           />
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setModalState({ open: true, editing: null })}
           className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
         >
           <UserPlus className="h-4 w-4" />
@@ -60,7 +75,7 @@ export default function StudentsPage() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
             <tr>
               <th className="px-4 py-3">Matricule</th>
@@ -68,26 +83,27 @@ export default function StudentsPage() {
               <th className="px-4 py-3">Classe</th>
               <th className="px-4 py-3">Tuteur</th>
               <th className="px-4 py-3">Statut</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-ink-soft">
+                <td colSpan={6} className="px-4 py-10 text-center text-ink-soft">
                   Chargement...
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-danger">
+                <td colSpan={6} className="px-4 py-10 text-center text-danger">
                   Impossible de charger les élèves. Vérifiez que l'API est démarrée.
                 </td>
               </tr>
             )}
             {!isLoading && !isError && (data?.data.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-14 text-center">
+                <td colSpan={6} className="px-4 py-14 text-center">
                   <GraduationCap className="mx-auto h-8 w-8 text-ink-soft" />
                   <p className="mt-2 text-sm text-ink-soft">Aucun élève inscrit pour le moment.</p>
                 </td>
@@ -104,6 +120,19 @@ export default function StudentsPage() {
                     {STATUS_LABELS[student.status] ?? student.status}
                   </span>
                 </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-1">
+                    <button onClick={() => setViewing(student)} className={viewIconClass} aria-label="Voir">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setModalState({ open: true, editing: student })} className={editIconClass} aria-label="Modifier">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setToDelete(student)} className={deleteIconClass} aria-label="Supprimer">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -112,7 +141,24 @@ export default function StudentsPage() {
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 
-      {modalOpen && <StudentFormModal onClose={() => setModalOpen(false)} />}
+      {modalState.open && (
+        <StudentFormModal editing={modalState.editing} onClose={() => setModalState({ open: false, editing: null })} />
+      )}
+
+      {viewing && <StudentDetailModal student={viewing} onClose={() => setViewing(null)} />}
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        title="Supprimer cet élève ?"
+        message={
+          toDelete
+            ? `${toDelete.full_name} sera définitivement supprimé. S'il a des paiements enregistrés, archivez-le plutôt via son statut.`
+            : ''
+        }
+        confirmLabel="Supprimer"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setToDelete(null)}
+      />
     </div>
   );
 }

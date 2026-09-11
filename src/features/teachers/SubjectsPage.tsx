@@ -1,33 +1,55 @@
 import { useState, type FormEvent } from 'react';
-import { BookOpen, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
-import { deleteIconClass } from '@/shared/components/actionStyles';
+import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
-import { useCreateSubject, useDeleteSubject, useSubjects, type SubjectRow } from './useTeaching';
+import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectRow } from './useTeaching';
 
 export default function SubjectsPage() {
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<{ open: boolean; editing: SubjectRow | null }>({
+    open: false,
+    editing: null,
+  });
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<SubjectRow | null>(null);
   const { data: subjects, isLoading } = useSubjects(search);
   const createSubject = useCreateSubject();
+  const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
   const { pageRows, ...pagination } = usePaginatedRows(subjects);
+  const isSaving = createSubject.isPending || updateSubject.isPending;
+
+  function openCreate() {
+    setCode('');
+    setLabel('');
+    setError(null);
+    setModalState({ open: true, editing: null });
+  }
+
+  function openEdit(subject: SubjectRow) {
+    setCode(subject.code);
+    setLabel(subject.label);
+    setError(null);
+    setModalState({ open: true, editing: subject });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     try {
-      await createSubject.mutateAsync({ code: code.trim().toUpperCase(), label: label.trim() });
-      setCode('');
-      setLabel('');
-      setModalOpen(false);
+      const payload = { code: code.trim().toUpperCase(), label: label.trim() };
+      if (modalState.editing) {
+        await updateSubject.mutateAsync({ id: modalState.editing.id, payload });
+      } else {
+        await createSubject.mutateAsync(payload);
+      }
+      setModalState({ open: false, editing: null });
     } catch (requestError: unknown) {
       const response = (requestError as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response;
       const validationMessage = response?.data?.errors ? Object.values(response.data.errors).flat()[0] : undefined;
@@ -49,7 +71,7 @@ export default function SubjectsPage() {
           <h1 className="mt-1 font-display text-2xl font-semibold text-ink">Matières</h1>
           <p className="mt-1 text-sm text-ink-soft">Gérez les matières utilisées dans les affectations et les emplois du temps.</p>
         </div>
-        <button type="button" onClick={() => setModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+        <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
           <Plus className="h-4 w-4" /> Nouvelle matière
         </button>
       </div>
@@ -77,10 +99,15 @@ export default function SubjectsPage() {
                 <td className="font-tabular px-4 py-3 text-ink-soft">{subject.code}</td>
                 <td className="px-4 py-3 font-medium text-ink">{subject.label}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">Active</span></td>
-                <td className="px-4 py-3 text-right">
-                  <button type="button" onClick={() => setToDelete(subject)} className={deleteIconClass} aria-label={`Désactiver ${subject.label}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-1">
+                    <button type="button" onClick={() => openEdit(subject)} className={editIconClass} aria-label="Modifier">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button type="button" onClick={() => setToDelete(subject)} className={deleteIconClass} aria-label={`Désactiver ${subject.label}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -90,8 +117,8 @@ export default function SubjectsPage() {
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 
-      {modalOpen && (
-        <Modal title="Nouvelle matière" onClose={() => setModalOpen(false)}>
+      {modalState.open && (
+        <Modal title={modalState.editing ? 'Modifier la matière' : 'Nouvelle matière'} onClose={() => setModalState({ open: false, editing: null })}>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
             <Field label="Code">
@@ -101,8 +128,8 @@ export default function SubjectsPage() {
               <input required value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Mathématiques" className={inputClass} />
             </Field>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setModalOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink">Annuler</button>
-              <button type="submit" disabled={createSubject.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{createSubject.isPending ? 'Enregistrement...' : 'Enregistrer'}</button>
+              <button type="button" onClick={() => setModalState({ open: false, editing: null })} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink">Annuler</button>
+              <button type="submit" disabled={isSaving} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isSaving ? 'Enregistrement...' : 'Enregistrer'}</button>
             </div>
           </form>
         </Modal>

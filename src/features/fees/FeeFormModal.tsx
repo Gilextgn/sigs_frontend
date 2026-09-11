@@ -3,30 +3,37 @@ import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { SearchableMultiSelect } from '@/shared/components/SearchableMultiSelect';
 import { useClasses } from '@/features/classes/useClasses';
-import { useCreateFeeType } from './useFeeTypes';
+import { useCreateFeeType, useUpdateFeeType, type FeeTypeRow } from './useFeeTypes';
 
-export function FeeFormModal({ onClose }: { onClose: () => void }) {
+export function FeeFormModal({ editing, onClose }: { editing?: FeeTypeRow | null; onClose: () => void }) {
   const { data: classes } = useClasses();
   const createFeeType = useCreateFeeType();
+  const updateFeeType = useUpdateFeeType();
 
-  const [label, setLabel] = useState('');
-  const [category, setCategory] = useState('');
-  const [amount, setAmount] = useState('');
-  const [classIds, setClassIds] = useState<number[]>([]);
-  const [isMandatory, setIsMandatory] = useState(true);
+  const [label, setLabel] = useState(editing?.label ?? '');
+  const [category, setCategory] = useState(editing?.category ?? '');
+  const [amount, setAmount] = useState(editing?.amount ?? '');
+  const [classIds, setClassIds] = useState<number[]>(editing?.classes.map((c) => c.id) ?? []);
+  const [isMandatory, setIsMandatory] = useState(editing?.is_mandatory ?? true);
   const [error, setError] = useState<string | null>(null);
+  const isSaving = createFeeType.isPending || updateFeeType.isPending;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const payload = {
+      label,
+      category: category || undefined,
+      amount: Number(amount),
+      class_ids: classIds,
+      is_mandatory: isMandatory,
+    };
     try {
-      await createFeeType.mutateAsync({
-        label,
-        category: category || undefined,
-        amount: Number(amount),
-        class_ids: classIds,
-        is_mandatory: isMandatory,
-      });
+      if (editing) {
+        await updateFeeType.mutateAsync({ id: editing.id, payload });
+      } else {
+        await createFeeType.mutateAsync(payload);
+      }
       onClose();
     } catch (requestError: unknown) {
       const response = (requestError as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response;
@@ -38,7 +45,7 @@ export function FeeFormModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title="Nouveau frais" onClose={onClose}>
+    <Modal title={editing ? 'Modifier le frais' : 'Nouveau frais'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
@@ -86,10 +93,10 @@ export function FeeFormModal({ onClose }: { onClose: () => void }) {
           </button>
           <button
             type="submit"
-            disabled={createFeeType.isPending}
+            disabled={isSaving}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
           >
-            {createFeeType.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
       </form>

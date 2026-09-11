@@ -37,6 +37,15 @@ export function useCreateFeeType() {
   });
 }
 
+export function useUpdateFeeType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: FeeTypePayload }) =>
+      (await apiClient.put(`/fees/${id}`, payload)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fees'] }),
+  });
+}
+
 export function useDeleteFeeType() {
   const queryClient = useQueryClient();
   return useMutation({

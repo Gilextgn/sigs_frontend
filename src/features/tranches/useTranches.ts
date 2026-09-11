@@ -33,6 +33,15 @@ export function useCreateTranche() {
   });
 }
 
+export function useUpdateTranche() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: TranchePayload }) =>
+      (await apiClient.put(`/tranches/${id}`, payload)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tranches'] }),
+  });
+}
+
 export function useDeleteTranche() {
   const queryClient = useQueryClient();
   return useMutation({

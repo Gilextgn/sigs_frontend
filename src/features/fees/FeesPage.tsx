@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Plus, Search, Trash2, Wallet } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
-import { deleteIconClass } from '@/shared/components/actionStyles';
+import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteFeeType, useFeeTypes, type FeeTypeRow } from './useFeeTypes';
 import { FeeFormModal } from './FeeFormModal';
@@ -11,7 +11,10 @@ const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function FeesPage() {
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<{ open: boolean; editing: FeeTypeRow | null }>({
+    open: false,
+    editing: null,
+  });
   const [toDelete, setToDelete] = useState<FeeTypeRow | null>(null);
   const { data, isLoading, isError } = useFeeTypes(search);
   const deleteFeeType = useDeleteFeeType();
@@ -36,7 +39,7 @@ export default function FeesPage() {
           />
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setModalState({ open: true, editing: null })}
           className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
         >
           <Plus className="h-4 w-4" />
@@ -60,13 +63,22 @@ export default function FeesPage() {
                 <p className="font-medium text-ink">{fee.label}</p>
                 {fee.category && <p className="text-xs text-ink-soft">{fee.category}</p>}
               </div>
-              <button
-                onClick={() => setToDelete(fee)}
-                className={deleteIconClass}
-                aria-label="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  onClick={() => setModalState({ open: true, editing: fee })}
+                  className={editIconClass}
+                  aria-label="Modifier"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setToDelete(fee)}
+                  className={deleteIconClass}
+                  aria-label="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <p className="font-tabular mt-2 text-lg font-semibold text-ink">
               {currency.format(Number(fee.amount))} XOF
@@ -91,7 +103,9 @@ export default function FeesPage() {
         </div>
       )}
 
-      {modalOpen && <FeeFormModal onClose={() => setModalOpen(false)} />}
+      {modalState.open && (
+        <FeeFormModal editing={modalState.editing} onClose={() => setModalState({ open: false, editing: null })} />
+      )}
 
       <ConfirmDialog
         open={toDelete !== null}

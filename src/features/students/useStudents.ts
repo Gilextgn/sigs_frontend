@@ -4,10 +4,15 @@ import { apiClient } from '@/shared/lib/apiClient';
 export interface StudentRow {
   id: number;
   matricule: string;
+  first_name: string;
+  last_name: string;
   full_name: string;
+  birth_date: string | null;
+  gender: 'F' | 'M' | null;
   status: string;
   class: { id: number; label: string; tuition_amount: string } | null;
-  guardian: { full_name: string; phone: string } | null;
+  guardian: { id: number; full_name: string; relationship_label: string; phone: string } | null;
+  created_at: string;
 }
 
 interface PaginatedStudents {
@@ -49,6 +54,38 @@ export function useCreateStudent() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: NewStudentPayload) => (await apiClient.post('/students', payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export interface UpdateStudentPayload {
+  class_id?: number;
+  first_name?: string;
+  last_name?: string;
+  birth_date?: string | null;
+  gender?: 'F' | 'M' | null;
+  status?: string;
+}
+
+export function useUpdateStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: UpdateStudentPayload }) =>
+      (await apiClient.put(`/students/${id}`, payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useDeleteStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => apiClient.delete(`/students/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
