@@ -35,7 +35,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-paper">
+    <div className="flex h-dvh overflow-hidden bg-paper">
       <Sidebar
         collapsed={!isMobile && collapsed}
         mobileOpen={isMobile && mobileOpen}
@@ -60,13 +60,22 @@ export function AppLayout() {
               Vous serez déconnecté automatiquement dans <strong className="text-ink">{secondsLeft}s</strong> par
               mesure de sécurité, faute d'activité.
             </p>
-            <button
-              type="button"
-              onClick={stayConnected}
-              className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-            >
-              Rester connecté
-            </button>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper"
+              >
+                Se déconnecter
+              </button>
+              <button
+                type="button"
+                onClick={stayConnected}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+              >
+                Rester connecté
+              </button>
+            </div>
           </div>
         </Modal>
       )}

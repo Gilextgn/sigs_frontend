@@ -148,7 +148,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
                 <div className="border-b border-border px-4 py-3 text-[13px] font-bold text-ink">
                   Élèves les plus débiteurs
                 </div>
@@ -200,7 +200,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
                 <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-dark px-5 py-5">
                   <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-white/8" />
                   <div className="relative flex items-center gap-3.5">
