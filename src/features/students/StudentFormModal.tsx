@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import axios from 'axios';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
@@ -46,8 +47,16 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
         },
       });
       onClose();
-    } catch {
-      setError("Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 422) {
+        const errors = err.response.data?.errors as Record<string, string[]> | undefined;
+        const firstMessage = errors ? Object.values(errors)[0]?.[0] : undefined;
+        setError(firstMessage ?? err.response.data?.message ?? "Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
+      } else if (axios.isAxiosError(err) && err.response?.status === 403) {
+        setError("Vous n'avez pas la permission d'inscrire un élève.");
+      } else {
+        setError("Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
+      }
     }
   }
 
