@@ -113,6 +113,17 @@
   }
 }
 
+/* iOS Safari zoome automatiquement l'écran quand on touche un champ dont
+   la taille de police est < 16px. Les champs de l'appli sont en text-sm
+   (14px) pour l'esthétique desktop ; on remonte donc leur taille juste
+   sur mobile pour désactiver ce zoom involontaire, sans changer le rendu
+   desktop. */
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
