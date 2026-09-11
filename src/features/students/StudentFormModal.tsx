@@ -48,12 +48,19 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
       });
       onClose();
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 422) {
-        const errors = err.response.data?.errors as Record<string, string[]> | undefined;
-        const firstMessage = errors ? Object.values(errors)[0]?.[0] : undefined;
-        setError(firstMessage ?? err.response.data?.message ?? "Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
-      } else if (axios.isAxiosError(err) && err.response?.status === 403) {
-        setError("Vous n'avez pas la permission d'inscrire un élève.");
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        if (status === 422) {
+          const errors = err.response?.data?.errors as Record<string, string[]> | undefined;
+          const firstMessage = errors ? Object.values(errors)[0]?.[0] : undefined;
+          setError(firstMessage ?? err.response?.data?.message ?? "Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
+        } else if (status === 403) {
+          setError("Vous n'avez pas la permission d'inscrire un élève.");
+        } else if (status) {
+          setError(`Erreur ${status} : ${err.response?.data?.message ?? "échec de l'inscription."}`);
+        } else {
+          setError(`Impossible de contacter le serveur (${err.message}).`);
+        }
       } else {
         setError("Impossible d'inscrire l'élève. Vérifiez les champs obligatoires.");
       }
