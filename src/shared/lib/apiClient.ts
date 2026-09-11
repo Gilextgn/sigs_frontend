@@ -18,3 +18,25 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+/**
+ * Sanctum exige un appel préalable à /sanctum/csrf-cookie avant tout
+ * login ou mutation depuis un frontend SPA séparé.
+ * Note: La route csrf-cookie est à la racine, PAS sous /api/
+ */
+export async function ensureCsrfCookie(): Promise<void> {
+  await apiClient.get('/../sanctum/csrf-cookie', {
+    withCredentials: true,
+    withXSRFToken: true,
+  });
+}
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
+    return Promise.reject(error);
+  },
+);
