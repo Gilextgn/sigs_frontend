@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://sigs-backend-06tv.onrender.com/api/:path*" },
+    { "source": "/sanctum/:path*", "destination": "https://sigs-backend-06tv.onrender.com/sanctum/:path*" }
+  ]
+}
