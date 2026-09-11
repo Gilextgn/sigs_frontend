@@ -81,7 +81,7 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nom complet">
             <input required value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} className={inputClass} />
           </Field>
@@ -90,7 +90,7 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label={editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe'}>
             <input
               type="password"
@@ -107,7 +107,7 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Rôle">
             <select required value={form.role_id} onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value }))} className={inputClass}>
               <option value="" disabled>Sélectionner un rôle</option>
@@ -131,7 +131,7 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
             Le rôle sélectionné accorde déjà certaines permissions (grisées, cochées automatiquement).
             Cochez ici des droits individuels en plus.
           </p>
-          <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-border bg-paper p-3">
+          <div className="grid max-h-56 grid-cols-1 sm:grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-border bg-paper p-3">
             {permissionsCatalog?.map((perm) => {
               const fromRole = rolePermissionCodes.includes(perm.code);
               const checked = fromRole || permissions.includes(perm.code);

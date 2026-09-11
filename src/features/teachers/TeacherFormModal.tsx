@@ -62,7 +62,7 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Téléphone">
             <input
               value={form.phone}
@@ -82,7 +82,7 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Salaire mensuel (XOF)">
             <input
               type="number"

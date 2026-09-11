@@ -59,7 +59,8 @@ export default function StudentsPage() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
             <tr>
               <th className="px-4 py-3">Matricule</th>
@@ -107,6 +108,7 @@ export default function StudentsPage() {
             ))}
           </tbody>
         </table>
+        </div>
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 

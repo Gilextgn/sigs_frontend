@@ -50,7 +50,7 @@ export function FeeFormModal({ onClose }: { onClose: () => void }) {
           <input required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Cantine" className={inputClass} />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Catégorie (optionnel)">
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Restauration" className={inputClass} />
           </Field>

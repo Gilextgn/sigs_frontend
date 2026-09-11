@@ -57,7 +57,8 @@ export default function SubjectsPage() {
       <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une matière..." className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-paper text-xs uppercase text-ink-soft">
             <tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Matière</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3" /></tr>
           </thead>
@@ -85,6 +86,7 @@ export default function SubjectsPage() {
             ))}
           </tbody>
         </table>
+        </div>
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 

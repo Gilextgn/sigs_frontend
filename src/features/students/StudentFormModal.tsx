@@ -78,7 +78,7 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
 
         <div>
           <p className="mb-3 text-sm font-semibold text-ink">Informations de l'élève</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Prénom">
               <input required value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} className={inputClass} />
             </Field>
@@ -87,7 +87,7 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
             </Field>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Classe">
               <SearchableSelect
                 value={form.class_id}
@@ -112,7 +112,7 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
         <div className="border-t border-border pt-4">
           <p className="mb-1 text-sm font-semibold text-ink">Tuteur / parent</p>
           <p className="mb-3 text-xs text-ink-soft">Obligatoire à l'inscription.</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Nom complet du tuteur">
               <input required value={form.guardian_full_name} onChange={(e) => setForm((f) => ({ ...f, guardian_full_name: e.target.value }))} className={inputClass} />
             </Field>
@@ -120,7 +120,7 @@ export function StudentFormModal({ onClose }: { onClose: () => void }) {
               <input required placeholder="Père, mère, tuteur légal..." value={form.guardian_relationship} onChange={(e) => setForm((f) => ({ ...f, guardian_relationship: e.target.value }))} className={inputClass} />
             </Field>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Téléphone">
               <input required value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: e.target.value }))} className={inputClass} />
             </Field>

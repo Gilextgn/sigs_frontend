@@ -71,7 +71,7 @@ export function PayrollFormModal({ onClose }: { onClose: () => void }) {
           />
         </Field>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Heures réalisées">
             <div className={`${inputClass} flex items-center justify-between`}><span>{estimate.data?.worked_hours ?? 0} h</span><span className="text-xs text-ink-soft">Calcul automatique</span></div>
           </Field>

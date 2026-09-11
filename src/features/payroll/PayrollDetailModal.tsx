@@ -73,8 +73,8 @@ export function PayrollDetailModal({ payrollId, onClose }: { payrollId: number; 
               <CalendarDays className="h-4 w-4 text-primary" />
               Séances comptabilisées
             </div>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[560px] text-left text-sm">
                 <thead className="bg-paper text-xs uppercase text-ink-soft">
                   <tr>
                     <th className="px-3 py-2">Date</th>
