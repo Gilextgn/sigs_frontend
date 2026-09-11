@@ -4,6 +4,7 @@ import { GraduationCap, Loader2, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { LoginCarousel } from './LoginCarousel';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
+import { PasswordField } from '@/shared/components/PasswordField';
 
 // Dépose tes photos dans public/images/login-carousel/ (voir README.md du dossier).
 // Les fichiers absents sont simplement ignorés par le navigateur.
@@ -105,19 +106,15 @@ export default function LoginPage() {
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink">
                 Mot de passe
               </label>
-              <div className="relative">
-                <LockKeyhole className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-lg border border-border bg-paper py-2.5 pr-3 pl-10 text-sm text-ink outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <PasswordField
+                id="password"
+                value={password}
+                onChange={setPassword}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                leftIcon={LockKeyhole}
+              />
             </div>
 
             <button

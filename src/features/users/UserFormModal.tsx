@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
+import { PasswordField } from '@/shared/components/PasswordField';
 import {
   useCreateUser,
   usePermissionsCatalog,
@@ -21,6 +22,7 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
     full_name: editing?.full_name ?? '',
     email: editing?.email ?? '',
     password: '',
+    password_confirmation: '',
     phone: editing?.phone ?? '',
     role_id: editing?.role?.id ?? '',
     status: editing?.status ?? 'active',
@@ -45,6 +47,13 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // En édition, un mot de passe vide signifie "ne pas changer" : la
+    // confirmation n'est alors vérifiée que si un mot de passe est saisi.
+    if (form.password && form.password !== form.password_confirmation) {
+      setError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
 
     const payload = {
       full_name: form.full_name,
@@ -92,16 +101,35 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label={editing ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe'}>
-            <input
-              type="password"
+            <PasswordField
               required={!editing}
               minLength={8}
+              autoComplete="new-password"
               value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              onChange={(value) => setForm((f) => ({ ...f, password: value }))}
               placeholder={editing ? 'Laisser vide pour ne pas changer' : undefined}
-              className={inputClass}
+              showStrength
             />
           </Field>
+          <Field
+            label="Confirmer le mot de passe"
+            error={
+              form.password && form.password_confirmation && form.password !== form.password_confirmation
+                ? 'Les deux mots de passe ne correspondent pas.'
+                : undefined
+            }
+          >
+            <PasswordField
+              required={!editing}
+              autoComplete="new-password"
+              value={form.password_confirmation}
+              onChange={(value) => setForm((f) => ({ ...f, password_confirmation: value }))}
+              placeholder={editing ? 'Laisser vide pour ne pas changer' : undefined}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Téléphone">
             <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputClass} />
           </Field>
