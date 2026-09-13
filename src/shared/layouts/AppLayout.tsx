@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Clock, Eye } from 'lucide-react';
 import { Sidebar } from '@/shared/components/Sidebar';
@@ -11,7 +11,13 @@ import { useAuth } from '@/features/auth/AuthContext';
 
 const COLLAPSE_STORAGE_KEY = 'schoolflow:sidebar-collapsed';
 
-export function AppLayout() {
+interface AppLayoutProps {
+  // Fourni quand AppLayout est utilisé hors du routeur imbriqué (ex. HomeRoute) ;
+  // sinon retombe sur l'<Outlet /> classique pour les routes enfants.
+  children?: ReactNode;
+}
+
+export function AppLayout({ children }: AppLayoutProps = {}) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -59,7 +65,7 @@ export function AppLayout() {
         )}
         {/* Seule cette zone défile — le footer ci-dessous reste fixe en bas d'écran. */}
         <main className="scrollbar-thin flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <Outlet />
+          {children ?? <Outlet />}
         </main>
         <AppFooter />
       </div>

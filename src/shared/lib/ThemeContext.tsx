@@ -12,9 +12,10 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'schoolflow:theme';
 
 function getInitialTheme(): Theme {
+  // Clair par défaut, quelle que soit la préférence système : seul un choix
+  // explicite précédent (stocké) fait basculer en sombre au premier rendu.
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return stored === 'dark' ? 'dark' : 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

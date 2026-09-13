@@ -248,6 +248,6 @@ SIGS peut être présenté dès maintenant à des écoles pilotes. Pour une comm
 
 Les pages déjà prévues dans l'application sont :
 
-- `/commercial` : présentation publique de SIGS ;
+- `/` : présentation publique de SIGS (vitrine) pour les visiteurs non connectés ;
 - `/owner` : espace privé de pilotage ;
 - `/statistics` : statistiques et évolution des encaissements.

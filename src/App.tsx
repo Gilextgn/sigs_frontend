@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { AuthProvider } from '@/features/auth/AuthContext';
+import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 
@@ -21,8 +21,8 @@ const PayrollPage = lazy(() => import('@/features/payroll/PayrollPage'));
 const UsersPage = lazy(() => import('@/features/users/UsersPage'));
 const SecurityPage = lazy(() => import('@/features/security/SecurityPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
-const CommercialPage = lazy(() => import('@/features/commercial/CommercialPage'));
-const OwnerDashboardPage = lazy(() => import('@/features/commercial/OwnerDashboardPage'));
+const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
+const OwnerDashboardPage = lazy(() => import('@/features/owner/OwnerDashboardPage'));
 const SchedulePage = lazy(() => import('@/features/teachers/SchedulePage'));
 const AttendancePage = lazy(() => import('@/features/teachers/AttendancePage'));
 const SubjectsPage = lazy(() => import('@/features/teachers/SubjectsPage'));
@@ -35,18 +35,41 @@ function RouteFallback() {
   );
 }
 
+// "/" est publique : visiteur non connecté -> vitrine (LandingPage), connecté -> Dashboard.
+// Remplace l'ancien comportement où "/" redirigeait tout visiteur droit vers /login.
+function HomeRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  return (
+    <AppLayout>
+      <DashboardPage />
+    </AppLayout>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/commercial" element={<CommercialPage />} />
 
             <Route element={<RequireAuth />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<DashboardPage />} />
                 <Route path="/statistics" element={<StatisticsPage />} />
                 <Route path="/owner" element={<OwnerDashboardPage />} />
                 <Route path="/students" element={<StudentsPage />} />

@@ -12,6 +12,12 @@
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
+  /* Réservées à la page d'accueil publique (LandingPage) : typo distincte du
+     reste de l'appli (tableau de bord), sans toucher --font-display/--font-sans
+     utilisés partout ailleurs. */
+  --font-landing: "Outfit", "Plus Jakarta Sans", sans-serif;
+  --font-landing-serif: "Instrument Serif", serif;
+
   /* Palette "registre scolaire" — valeurs par défaut (clair).
      Teintes plus franches que la version d'origine, sans partir sur du
      saturé : les couleurs servent à signaler un statut, pas à décorer. */
@@ -73,6 +79,7 @@
 
   html {
     color-scheme: light;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -129,6 +136,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
