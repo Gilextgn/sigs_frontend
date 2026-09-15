@@ -11,7 +11,6 @@ import {
   useAssignments,
   useCreateAssignment,
   useCreateSchedule,
-  useCreateSubject,
   useDeleteSchedule,
   useSchedules,
   useSubjects,
@@ -33,8 +32,6 @@ export default function SchedulePage() {
   const [startsAt, setStartsAt] = useState('08:00');
   const [endsAt, setEndsAt] = useState('09:00');
   const [room, setRoom] = useState('');
-  const [subjectLabel, setSubjectLabel] = useState('');
-  const [subjectCode, setSubjectCode] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<ScheduleRow | null>(null);
@@ -44,7 +41,6 @@ export default function SchedulePage() {
   const { data: subjects } = useSubjects();
   const { data: assignments } = useAssignments();
   const { data: schedules } = useSchedules(classId);
-  const createSubject = useCreateSubject();
   const createAssignment = useCreateAssignment();
   const createSchedule = useCreateSchedule();
   const deleteSchedule = useDeleteSchedule();
@@ -55,18 +51,6 @@ export default function SchedulePage() {
     () => (assignments ?? []).filter((assignment) => (!classId || assignment.class_id === classId) && (!subjectId || assignment.subject_id === subjectId) && (!teacherId || assignment.teacher_id === teacherId)),
     [assignments, classId, subjectId, teacherId],
   );
-
-  async function addSubject() {
-    setError(null);
-    if (!subjectCode || !subjectLabel) return setError('Renseignez le code et le nom de la matière.');
-    try {
-      await createSubject.mutateAsync({ code: subjectCode, label: subjectLabel });
-      setSubjectCode('');
-      setSubjectLabel('');
-    } catch {
-      setError('Impossible de créer cette matière.');
-    }
-  }
 
   async function addAssignment() {
     setError(null);
@@ -126,30 +110,18 @@ export default function SchedulePage() {
         </div>
       </div>
       {error && <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</div>}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="rounded-xl border border-border bg-surface p-4">
-          <h2 className="font-display text-base font-semibold text-ink">Nouvelle matière</h2>
-          <div className="mt-3 space-y-2">
-            <input value={subjectCode} onChange={(e) => setSubjectCode(e.target.value)} placeholder="Code, ex. MATH" className="w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-            <input value={subjectLabel} onChange={(e) => setSubjectLabel(e.target.value)} placeholder="Mathématiques" className="w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-            <button type="button" onClick={addSubject} className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white">
-              <Plus className="h-4 w-4" /> Ajouter
-            </button>
-          </div>
-        </section>
-        <section className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
-          <h2 className="font-display text-base font-semibold text-ink">Affectation et tarif horaire</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <SearchableSelect value={teacherId} onChange={setTeacherId} placeholder="Choisir un enseignant" options={(teachers?.data ?? []).map((teacher) => ({ value: teacher.id, label: teacher.full_name }))} />
-            <SearchableSelect value={classId} onChange={setClassId} placeholder="Choisir une classe" options={(classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }))} />
-            <SearchableSelect value={subjectId} onChange={setSubjectId} placeholder="Choisir une matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
-            <input type="number" min="0.01" step="0.01" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="Tarif horaire (XOF)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-          </div>
-          <button type="button" onClick={addAssignment} className="mt-3 flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft">
-            <Plus className="h-4 w-4" /> Enregistrer l’affectation
-          </button>
-        </section>
-      </div>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="font-display text-base font-semibold text-ink">Affectation et tarif horaire</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SearchableSelect value={teacherId} onChange={setTeacherId} placeholder="Choisir un enseignant" options={(teachers?.data ?? []).map((teacher) => ({ value: teacher.id, label: teacher.full_name }))} />
+          <SearchableSelect value={classId} onChange={setClassId} placeholder="Choisir une classe" options={(classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }))} />
+          <SearchableSelect value={subjectId} onChange={setSubjectId} placeholder="Choisir une matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
+          <input type="number" min="0.01" step="0.01" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="Tarif horaire (XOF)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
+        </div>
+        <button type="button" onClick={addAssignment} className="mt-3 flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft">
+          <Plus className="h-4 w-4" /> Enregistrer l’affectation
+        </button>
+      </section>
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="font-display text-base font-semibold text-ink">Ajouter un créneau</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">

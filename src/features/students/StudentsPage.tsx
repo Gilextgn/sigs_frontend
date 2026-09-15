@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye, GraduationCap, Pencil, Search, Trash2, UserPlus } from 'lucide-react';
+import { Eye, GraduationCap, Pencil, Repeat, Search, Trash2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
@@ -11,6 +11,7 @@ import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteStudent, useStudents, type StudentRow } from './useStudents';
 import { StudentFormModal } from './StudentFormModal';
 import { StudentDetailModal } from './StudentDetailModal';
+import { ReEnrollStudentModal } from './ReEnrollStudentModal';
 import { STUDENT_STATUS_LABELS, STUDENT_STATUS_TONES } from './studentStatus';
 
 export default function StudentsPage() {
@@ -22,6 +23,7 @@ export default function StudentsPage() {
   });
   const [viewing, setViewing] = useState<StudentRow | null>(null);
   const [toDelete, setToDelete] = useState<StudentRow | null>(null);
+  const [reEnrollOpen, setReEnrollOpen] = useState(false);
   const { data, isLoading, isError } = useStudents({ search });
   const deleteStudent = useDeleteStudent();
   const { pageRows, ...pagination } = usePaginatedRows(data?.data);
@@ -55,15 +57,26 @@ export default function StudentsPage() {
             className="w-full rounded-lg border border-border bg-surface py-2 pr-3 pl-9 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        {hasPermission('students.create') && (
-          <button
-            onClick={() => setModalState({ open: true, editing: null })}
-            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
-          >
-            <UserPlus className="h-4 w-4" />
-            Nouvel élève
-          </button>
-        )}
+        <div className="flex shrink-0 gap-2">
+          {hasPermission('students.reenroll') && (
+            <button
+              onClick={() => setReEnrollOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper"
+            >
+              <Repeat className="h-4 w-4" />
+              Réinscription
+            </button>
+          )}
+          {hasPermission('students.create') && (
+            <button
+              onClick={() => setModalState({ open: true, editing: null })}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+            >
+              <UserPlus className="h-4 w-4" />
+              Nouvel élève
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -138,6 +151,16 @@ export default function StudentsPage() {
       )}
 
       {viewing && <StudentDetailModal student={viewing} onClose={() => setViewing(null)} />}
+
+      {reEnrollOpen && (
+        <ReEnrollStudentModal
+          onClose={() => setReEnrollOpen(false)}
+          onCreateStudent={() => {
+            setReEnrollOpen(false);
+            setModalState({ open: true, editing: null });
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={toDelete !== null}

@@ -14,6 +14,25 @@ export interface AcademicYearRow {
   is_active: boolean;
   date_start: string | null;
   date_end: string | null;
+  closed_at: string | null;
+}
+
+export interface UnpaidItemRow {
+  type: 'TRANCHE' | 'AUTRE_FRAIS';
+  label: string;
+  amount: number;
+  paid: number;
+  remaining: number;
+}
+
+export interface YearDebtorRow {
+  student_id: number;
+  matricule: string;
+  full_name: string;
+  theoretical_amount: number;
+  paid_amount: number;
+  outstanding_amount: number;
+  unpaid_items: UnpaidItemRow[];
 }
 
 export function useSchoolSettings() {
@@ -72,6 +91,31 @@ export function useActivateAcademicYear() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => (await apiClient.post<AcademicYearRow>(`/academic-years/${id}/activate`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years'] }),
+  });
+}
+
+export function useClosingPreview(yearId: number | null) {
+  return useQuery({
+    queryKey: ['academic-years', yearId, 'closing-preview'],
+    queryFn: async () => (await apiClient.get<YearDebtorRow[]>(`/academic-years/${yearId}/closing-preview`)).data,
+    enabled: yearId !== null,
+  });
+}
+
+export function useCloseAcademicYear() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await apiClient.post<{ academic_year: AcademicYearRow; debtors: YearDebtorRow[] }>(`/academic-years/${id}/close`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years'] }),
+  });
+}
+
+export function useReopenAcademicYear() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => (await apiClient.post<AcademicYearRow>(`/academic-years/${id}/reopen`)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['academic-years'] }),
   });
 }

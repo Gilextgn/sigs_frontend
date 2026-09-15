@@ -11,6 +11,7 @@ export interface StudentRow {
   gender: 'F' | 'M' | null;
   status: string;
   class: { id: number; label: string; tuition_amount: string } | null;
+  academic_year?: { id: number; code: string } | null;
   guardian: { id: number; full_name: string; relationship_label: string; phone: string } | null;
   created_at: string;
 }
@@ -75,6 +76,51 @@ export function useUpdateStudent() {
   return useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: UpdateStudentPayload }) =>
       (await apiClient.put(`/students/${id}`, payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export interface UnpaidItemRow {
+  type: 'TRANCHE' | 'AUTRE_FRAIS';
+  label: string;
+  amount: number;
+  paid: number;
+  remaining: number;
+}
+
+export interface ClosedYearDebtRow {
+  academic_year: string;
+  theoretical_amount: number;
+  paid_amount: number;
+  outstanding_amount: number;
+  unpaid_items: UnpaidItemRow[];
+}
+
+export interface ReEnrollmentContext {
+  current_year: { id: number; code: string } | null;
+  target_year: { id: number; code: string } | null;
+  debts: ClosedYearDebtRow[];
+  blocked_reason: string | null;
+}
+
+/** Année visée et éventuel motif de blocage, avant même la saisie. */
+export function useReEnrollmentContext(studentId: number | null) {
+  return useQuery({
+    queryKey: ['students', studentId, 're-enrollment-context'],
+    queryFn: async () =>
+      (await apiClient.get<ReEnrollmentContext>(`/students/${studentId}/re-enrollment-context`)).data,
+    enabled: studentId !== null,
+  });
+}
+
+export function useReEnrollStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ studentId, classId }: { studentId: number; classId: number }) =>
+      (await apiClient.post<StudentRow>(`/students/${studentId}/re-enroll`, { class_id: classId })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
