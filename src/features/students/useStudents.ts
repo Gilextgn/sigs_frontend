@@ -102,6 +102,8 @@ export interface ClosedYearDebtRow {
 export interface ReEnrollmentContext {
   current_year: { id: number; code: string } | null;
   target_year: { id: number; code: string } | null;
+  /** Renseigné quand l'année suivante n'existe pas encore : son code attendu. */
+  expected_next_code: string | null;
   debts: ClosedYearDebtRow[];
   blocked_reason: string | null;
 }
