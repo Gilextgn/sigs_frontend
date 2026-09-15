@@ -100,10 +100,10 @@ export interface ClosedYearDebtRow {
 }
 
 export interface ReEnrollmentContext {
-  current_year: { id: number; code: string } | null;
+  /** Dernière année suivie par l'élève (celle qui s'achève). */
+  last_year: { id: number; code: string } | null;
+  /** Année pour laquelle on réinscrit : celle déclarée active par l'école. */
   target_year: { id: number; code: string } | null;
-  /** Renseigné quand l'année suivante n'existe pas encore : son code attendu. */
-  expected_next_code: string | null;
   debts: ClosedYearDebtRow[];
   blocked_reason: string | null;
 }

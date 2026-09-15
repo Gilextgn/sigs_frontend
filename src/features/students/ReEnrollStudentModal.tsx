@@ -1,9 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import axios from 'axios';
-import { AlertTriangle, ArrowRight, CalendarCheck, CalendarPlus } from 'lucide-react';
-import { useAuth } from '@/features/auth/AuthContext';
+import { AlertTriangle, ArrowRight, CalendarCheck } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
-import { useCreateAcademicYear } from '@/features/settings/useSettings';
 import { Modal } from '@/shared/components/Modal';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { StudentSearchSelect } from './StudentSearchSelect';
@@ -34,36 +32,21 @@ export function ReEnrollStudentModal({
   /** L'élève cherché n'existe pas : bascule vers le formulaire d'inscription. */
   onCreateStudent: () => void;
 }) {
-  const { hasPermission } = useAuth();
-  const canManageYears = hasPermission('settings.manage');
   const { data: classes } = useClasses();
   const reEnroll = useReEnrollStudent();
-  const createYear = useCreateAcademicYear();
 
   const [student, setStudent] = useState<StudentRow | null>(null);
   const [classId, setClassId] = useState<number | ''>('');
   const [error, setError] = useState<string | null>(null);
 
-  const { data: context, isLoading: contextLoading, refetch } = useReEnrollmentContext(student?.id ?? null);
+  const { data: context, isLoading: contextLoading } = useReEnrollmentContext(student?.id ?? null);
   const blocked = Boolean(context?.blocked_reason);
   const debts = context?.debts ?? [];
-  const missingYearCode = context?.expected_next_code ?? null;
 
   function selectStudent(next: StudentRow) {
     setStudent(next);
     setClassId('');
     setError(null);
-  }
-
-  async function handleCreateMissingYear() {
-    if (!missingYearCode) return;
-    setError(null);
-    try {
-      await createYear.mutateAsync({ code: missingYearCode });
-      await refetch();
-    } catch {
-      setError(`Impossible de créer l'année ${missingYearCode}.`);
-    }
   }
 
   async function handleSubmit() {
@@ -115,8 +98,8 @@ export function ReEnrollStudentModal({
           <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary-soft px-3 py-2.5 text-sm text-primary">
             <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <span className="min-w-0">
-              Réinscription pour l’année <strong>{context.target_year.code}</strong>
-              {context.current_year ? ` (année en cours : ${context.current_year.code})` : ''}
+              Réinscription pour <strong>{context.target_year.code}</strong>
+              {context.last_year ? `, l’année en cours (l’élève venait de ${context.last_year.code})` : ', l’année en cours'}
             </span>
           </div>
         )}
@@ -146,25 +129,6 @@ export function ReEnrollStudentModal({
               </>
             )}
 
-            {missingYearCode && (
-              <div className="mt-3">
-                {canManageYears ? (
-                  <button
-                    type="button"
-                    onClick={handleCreateMissingYear}
-                    disabled={createYear.isPending}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                    {createYear.isPending ? 'Création...' : `Créer l’année ${missingYearCode}`}
-                  </button>
-                ) : (
-                  <p className="text-xs text-ink-soft">
-                    Demandez à un administrateur de créer l’année {missingYearCode} dans Paramètres.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         )}
 
