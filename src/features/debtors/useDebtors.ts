@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/shared/lib/apiClient';
+import type { UnpaidItemRow } from '@/features/students/useStudents';
 
 export interface DebtorRow {
   student_id: number;
@@ -9,7 +10,7 @@ export interface DebtorRow {
   theoretical_amount: number;
   paid_amount: number;
   outstanding_amount: number;
-  unpaid_items: { type: string; label: string; amount: number; paid: number; remaining: number }[];
+  unpaid_items: UnpaidItemRow[];
 }
 
 export function useDebtors(params: { classId?: number | ''; trancheId?: number | '' }) {

@@ -164,7 +164,7 @@ export default function AttendancePage() {
                               }}
                               className={`rounded-full border px-2.5 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
                                 active
-                                  ? 'border-primary bg-primary text-white'
+                                  ? 'border-primary bg-primary text-on-primary'
                                   : 'border-border bg-surface text-ink-soft hover:border-primary/50 hover:text-ink'
                               }`}
                             >
@@ -214,7 +214,7 @@ export default function AttendancePage() {
                         type="button"
                         onClick={() => save(session.id, teacherId)}
                         disabled={isSavingThisRow || !teacherId}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-on-success disabled:opacity-50"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> {isSavingThisRow ? 'Enregistrement...' : 'Enregistrer'}
                       </button>

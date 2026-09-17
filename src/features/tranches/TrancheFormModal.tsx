@@ -4,8 +4,8 @@ import { Field, inputClass } from '@/shared/components/Field';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { useClasses } from '@/features/classes/useClasses';
 import { useCreateTranche, useUpdateTranche, useTranches, type TrancheRow } from './useTranches';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export function TrancheFormModal({ editing, onClose }: { editing?: TrancheRow | null; onClose: () => void }) {
   const { data: classes } = useClasses();
@@ -112,7 +112,7 @@ export function TrancheFormModal({ editing, onClose }: { editing?: TrancheRow | 
           <button
             type="submit"
             disabled={isSaving || !classId}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
           >
             {isSaving ? 'Enregistrement...' : 'Enregistrer'}
           </button>

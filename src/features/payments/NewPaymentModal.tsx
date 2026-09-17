@@ -1,86 +1,134 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Check, RefreshCcw } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
-import { Field, inputClass } from '@/shared/components/Field';
-import { useStudents } from '@/features/students/useStudents';
+import { Spinner } from '@/shared/components/Loader';
+import { StudentSearchSelect } from '@/features/students/StudentSearchSelect';
+import { useStudent, type StudentRow } from '@/features/students/useStudents';
 import { useTranches } from '@/features/tranches/useTranches';
 import { useFeeTypes } from '@/features/fees/useFeeTypes';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { downloadPaymentReceiptPdf } from '@/shared/lib/pdf';
-import { useCreatePayment, useStudentPayments, type NewPaymentLine, type PaymentItemWithLabel } from './usePayments';
+import { formatAmount, formatNumber } from '@/shared/lib/format';
+import { LineStatus } from './LineStatus';
+import { toReceiptData, useCreatePayment, useStudentPayments, type NewPaymentLine } from './usePayments';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+interface PayableLine {
+  key: string;
+  label: string;
+  group: 'Tranches' | 'Autres frais';
+  amount: number;
+  paid: number;
+  remaining: number;
+}
 
-export function NewPaymentModal({ onClose }: { onClose: () => void }) {
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentId, setStudentId] = useState<number | null>(null);
+/**
+ * Encaisser : choisir l'élève (ou l'arriver déjà choisi depuis sa fiche,
+ * les débiteurs, l'accueil), cocher les lignes, valider. Le reçu part
+ * aussitôt en PDF.
+ *
+ * Un montant inférieur au reste d'une ligne est accepté : c'est un acompte,
+ * la ligne n'est pas soldée et l'écran comme le reçu le disent.
+ */
+export function NewPaymentModal({ initialStudentId = null, onClose }: { initialStudentId?: number | null; onClose: () => void }) {
+  const [pickedStudent, setPickedStudent] = useState<StudentRow | null>(null);
+  const [studentId, setStudentId] = useState<number | null>(initialStudentId);
   const [selectedAmounts, setSelectedAmounts] = useState<Record<string, string>>({});
+  const [prefilledFor, setPrefilledFor] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: studentResults } = useStudents({ search: studentSearch });
-  const selectedStudent = studentResults?.data.find((s) => s.id === studentId);
-  const classId = selectedStudent?.class?.id;
+  const { data: fetchedStudent } = useStudent(pickedStudent ? null : studentId);
+  const student = pickedStudent ?? fetchedStudent ?? null;
+  const classId = student?.class?.id;
 
-  const { data: tranches } = useTranches(classId ?? '');
+  const { data: tranches, isLoading: tranchesLoading } = useTranches(classId ?? '');
   const { data: feeTypes } = useFeeTypes();
-  const { data: studentPayments } = useStudentPayments(studentId);
+  const { data: studentPayments, isLoading: paymentsLoading } = useStudentPayments(studentId);
   const createPayment = useCreatePayment();
   const { data: settings } = useSchoolSettings();
 
-  const applicableFees = useMemo(
-    () => (feeTypes ?? []).filter((fee) => fee.classes.some((c) => c.id === classId)),
-    [feeTypes, classId],
-  );
+  const lines = useMemo<PayableLine[]>(() => {
+    if (!classId) return [];
 
-  const paidByKey = useMemo(() => {
-    const map = new Map<string, number>();
+    const paidByKey = new Map<string, number>();
     for (const payment of studentPayments?.data ?? []) {
       for (const item of payment.items) {
         const key = item.item_type === 'TRANCHE' ? `T-${item.tuition_installment_id}` : `F-${item.fee_type_id}`;
-        map.set(key, (map.get(key) ?? 0) + Number(item.paid_amount));
+        paidByKey.set(key, (paidByKey.get(key) ?? 0) + Number(item.paid_amount));
       }
     }
-    return map;
-  }, [studentPayments]);
 
-  function lineFor(key: string, referenceAmount: number) {
-    const already = paidByKey.get(key) ?? 0;
-    const remaining = Math.max(referenceAmount - already, 0);
-    return { already, remaining };
+    const build = (key: string, label: string, group: PayableLine['group'], amount: number): PayableLine => {
+      const paid = paidByKey.get(key) ?? 0;
+      return { key, label, group, amount, paid, remaining: Math.max(amount - paid, 0) };
+    };
+
+    return [
+      ...(tranches ?? []).map((t) => build(`T-${t.id}`, t.label, 'Tranches', Number(t.amount))),
+      ...(feeTypes ?? [])
+        .filter((fee) => fee.classes.some((c) => c.id === classId))
+        .map((fee) => build(`F-${fee.id}`, fee.label, 'Autres frais', Number(fee.amount))),
+    ];
+  }, [classId, tranches, feeTypes, studentPayments]);
+
+  const linesReady = !!classId && !tranchesLoading && !paymentsLoading;
+
+  // Arrivé depuis une fiche ou un débiteur : la prochaine ligne due est
+  // pré-cochée pour son reste exact, le montant est visible avant le clic.
+  useEffect(() => {
+    if (!linesReady || !studentId || prefilledFor === studentId) return;
+    const next = lines.find((line) => line.remaining > 0);
+    setSelectedAmounts(next ? { [next.key]: String(next.remaining) } : {});
+    setPrefilledFor(studentId);
+  }, [linesReady, lines, studentId, prefilledFor]);
+
+  const outstanding = lines.reduce((sum, line) => sum + line.remaining, 0);
+  const total = Object.values(selectedAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const remainingAfter = lines
+    .filter((line) => line.key in selectedAmounts)
+    .reduce((sum, line) => sum + Math.max(line.remaining - (Number(selectedAmounts[line.key]) || 0), 0), 0);
+
+  function chooseStudent(row: StudentRow) {
+    setPickedStudent(row);
+    setStudentId(row.id);
+    setSelectedAmounts({});
+    setPrefilledFor(null);
+    setError(null);
   }
 
-  function toggleLine(key: string, remaining: number) {
+  function resetStudent() {
+    setPickedStudent(null);
+    setStudentId(null);
+    setSelectedAmounts({});
+    setPrefilledFor(null);
+  }
+
+  function toggleLine(line: PayableLine) {
     setSelectedAmounts((current) => {
       const copy = { ...current };
-      if (key in copy) {
-        delete copy[key];
-      } else {
-        copy[key] = String(remaining);
-      }
+      if (line.key in copy) delete copy[line.key];
+      else copy[line.key] = String(line.remaining);
       return copy;
     });
   }
 
-  function updateAmount(key: string, value: string, remaining: number) {
+  function updateAmount(line: PayableLine, value: string) {
     if (value === '') {
-      setSelectedAmounts((current) => ({ ...current, [key]: value }));
+      setSelectedAmounts((current) => ({ ...current, [line.key]: '' }));
       return;
     }
-
     const amount = Number(value);
     setSelectedAmounts((current) => ({
       ...current,
-      [key]: Number.isFinite(amount) ? String(Math.min(Math.max(amount, 0), remaining)) : current[key] ?? '',
+      [line.key]: Number.isFinite(amount) ? String(Math.min(Math.max(amount, 0), line.remaining)) : current[line.key] ?? '',
     }));
   }
-
-  const total = Object.values(selectedAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!studentId) {
-      setError('Sélectionnez un élève.');
+    if (!studentId || !student) {
+      setError('Choisissez un élève.');
       return;
     }
 
@@ -93,233 +141,165 @@ export function NewPaymentModal({ onClose }: { onClose: () => void }) {
           : { item_type: 'AUTRE_FRAIS', fee_type_id: Number(id), paid_amount: Number(amount) };
       });
 
-    const invalidLine = Object.entries(selectedAmounts).find(([key, amount]) => {
-      const [type, id] = key.split('-');
-      const reference = type === 'T'
-        ? tranches?.find((tranche) => tranche.id === Number(id))?.amount
-        : applicableFees.find((fee) => fee.id === Number(id))?.amount;
-      return reference !== undefined && Number(amount) > lineFor(key, Number(reference)).remaining;
-    });
-
-    if (invalidLine) {
-      const [type, id] = invalidLine[0].split('-');
-      const label = type === 'T'
-        ? tranches?.find((tranche) => tranche.id === Number(id))?.label
-        : applicableFees.find((fee) => fee.id === Number(id))?.label;
-      const reference = type === 'T'
-        ? tranches?.find((tranche) => tranche.id === Number(id))?.amount
-        : applicableFees.find((fee) => fee.id === Number(id))?.amount;
-      setError(`Le montant de « ${label ?? 'cette ligne'} » dépasse le reste autorisé de ${currency.format(lineFor(invalidLine[0], Number(reference)).remaining)} XOF.`);
-      return;
-    }
-
     if (items.length === 0) {
-      setError('Sélectionnez au moins une tranche ou un frais à encaisser.');
+      setError('Cochez au moins une ligne et indiquez un montant.');
       return;
     }
 
     try {
       const payment = await createPayment.mutateAsync({ student_id: studentId, items });
-      await downloadPaymentReceiptPdf(
-        {
-          reference_code: payment.reference_code,
-          payment_date: payment.payment_date,
-          student: payment.student
-            ? { ...payment.student, class: selectedStudent?.class?.label ?? null }
-            : null,
-          cashier: payment.cashier,
-          items: payment.items.map((item) => ({
-            label: item.item_type === 'TRANCHE'
-              ? ((item as PaymentItemWithLabel).tuition_installment?.label ?? 'Tranche')
-              : ((item as PaymentItemWithLabel).fee_type?.label ?? 'Autre frais'),
-            paid_amount: item.paid_amount,
-          })),
-          total_paid_amount: payment.total_paid_amount,
-        },
-        settings ?? null,
-      );
+      await downloadPaymentReceiptPdf(toReceiptData(payment, student.class?.label), settings ?? null);
       onClose();
     } catch (requestError: unknown) {
       const response = (requestError as {
         response?: { data?: { message?: string; errors?: Record<string, string[]> } };
       }).response;
-      const validationMessage = response?.data?.errors
-        ? Object.values(response.data.errors).flat()[0]
-        : undefined;
+      const validationMessage = response?.data?.errors ? Object.values(response.data.errors).flat()[0] : undefined;
       setError(validationMessage ?? response?.data?.message ?? 'Impossible d’enregistrer le paiement.');
     }
   }
 
+  const groups: PayableLine['group'][] = ['Tranches', 'Autres frais'];
+
   return (
-    <Modal title="Nouveau paiement" onClose={onClose} widthClassName="max-w-2xl">
+    <Modal title="Encaisser" onClose={onClose} widthClassName="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
-            {error}
+        {error && <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</div>}
+
+        {!studentId ? (
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-ink">Élève</p>
+            <StudentSearchSelect onSelect={chooseStudent} />
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-paper px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold text-ink">{student?.full_name ?? '…'}</p>
+              <p className="text-xs text-ink-soft">
+                {student?.matricule ?? ''} · {student?.class?.label ?? 'Sans classe'}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-[11px] font-medium tracking-wide text-ink-soft uppercase">Reste à payer</p>
+                <p className={`font-tabular text-lg font-semibold ${outstanding > 0 ? 'text-danger' : 'text-success'}`}>
+                  {linesReady ? formatAmount(outstanding) : '…'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetStudent}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-ink-soft transition hover:bg-surface hover:text-ink"
+              >
+                <RefreshCcw className="h-3.5 w-3.5" />
+                Changer
+              </button>
+            </div>
           </div>
         )}
 
-        <Field label="Élève">
-          <input
-            value={studentId ? `${selectedStudent?.full_name} (${selectedStudent?.matricule})` : studentSearch}
-            onChange={(e) => {
-              setStudentId(null);
-              setStudentSearch(e.target.value);
-            }}
-            placeholder="Rechercher par matricule ou par nom..."
-            className={inputClass}
-          />
-          {!studentId && studentSearch && (
-            <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-surface">
-              {(studentResults?.data ?? []).map((s) => (
-                <button
-                  type="button"
-                  key={s.id}
-                  onClick={() => {
-                    setStudentId(s.id);
-                    setSelectedAmounts({});
-                  }}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-paper"
-                >
-                  <span>{s.full_name}</span>
-                  <span className="font-tabular text-xs text-ink-soft">{s.matricule}</span>
-                </button>
-              ))}
-              {(studentResults?.data ?? []).length === 0 && (
-                <p className="px-3 py-2 text-sm text-ink-soft">Aucun élève trouvé.</p>
+        {studentId && !linesReady && (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink-soft">
+            <Spinner className="text-primary" /> Calcul du reste à payer…
+          </div>
+        )}
+
+        {studentId && linesReady && (
+          <div className="space-y-4">
+            {groups.map((group) => {
+              const groupLines = lines.filter((line) => line.group === group);
+              return (
+                <div key={group}>
+                  <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">{group}</p>
+                  <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                    {groupLines.length === 0 && (
+                      <p className="px-3 py-3 text-sm text-ink-soft">
+                        {group === 'Tranches' ? 'Aucune tranche définie pour cette classe.' : 'Aucun frais applicable à cette classe.'}
+                      </p>
+                    )}
+                    {groupLines.map((line) => {
+                      const checked = line.key in selectedAmounts;
+                      const settled = line.remaining <= 0;
+                      const typed = Number(selectedAmounts[line.key]) || 0;
+                      const leftAfter = Math.max(line.remaining - typed, 0);
+                      return (
+                        <div key={line.key} className={`px-3 py-2.5 ${settled ? 'opacity-60' : ''} ${checked ? 'bg-primary-soft/40' : ''}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              disabled={settled}
+                              onClick={() => toggleLine(line)}
+                              aria-pressed={checked}
+                              className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed"
+                            >
+                              <span
+                                className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition ${
+                                  checked ? 'border-primary bg-primary text-on-primary' : 'border-border bg-surface'
+                                }`}
+                              >
+                                {checked && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium text-ink">{line.label}</span>
+                                <span className="block">
+                                  <LineStatus paid={line.paid} remaining={line.remaining} />
+                                </span>
+                              </span>
+                            </button>
+                            {checked && (
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={line.remaining}
+                                step="1"
+                                value={selectedAmounts[line.key]}
+                                onChange={(e) => updateAmount(line, e.target.value)}
+                                aria-label={`Montant pour ${line.label}`}
+                                className="font-tabular w-32 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-right text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            )}
+                          </div>
+                          {checked && typed > 0 && (
+                            <p className={`mt-1.5 pl-7.5 text-xs ${leftAfter > 0 ? 'text-gold' : 'text-success'}`}>
+                              {leftAfter > 0
+                                ? `Acompte : il restera ${formatAmount(leftAfter)} pour solder cette ligne.`
+                                : 'Cette ligne sera soldée.'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="rounded-xl bg-sidebar px-4 py-3 text-white">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-sidebar-text">Total encaissé</span>
+                <span className="font-tabular text-xl font-semibold text-sidebar-accent">{formatAmount(total)}</span>
+              </div>
+              {total > 0 && remainingAfter > 0 && (
+                <p className="mt-1 text-right text-xs text-[#F5C451]">
+                  Acompte · reste {formatNumber(remainingAfter)} XOF sur les lignes cochées
+                </p>
               )}
             </div>
-          )}
-        </Field>
-
-        {studentId && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-2 rounded-lg border border-border bg-paper px-3 py-3 text-sm sm:grid-cols-3">
-              <div><p className="text-xs text-ink-soft">Nom et prénom</p><p className="font-medium text-ink">{selectedStudent?.full_name ?? '—'}</p></div>
-              <div><p className="text-xs text-ink-soft">Classe</p><p className="font-medium text-ink">{selectedStudent?.class?.label ?? '—'}</p></div>
-              <div><p className="text-xs text-ink-soft">Reste à payer</p><p className="font-tabular font-semibold text-danger">
-                {currency.format(
-                  (tranches ?? []).reduce((sum, t) => sum + lineFor(`T-${t.id}`, Number(t.amount)).remaining, 0) +
-                    applicableFees.reduce((sum, fee) => sum + lineFor(`F-${fee.id}`, Number(fee.amount)).remaining, 0),
-                )}{' '}
-                XOF
-              </p></div>
-            </div>
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-ink">Tranches</p>
-              <div className="divide-y divide-border rounded-lg border border-border">
-                {(tranches ?? []).length === 0 && (
-                  <p className="px-3 py-3 text-sm text-ink-soft">Aucune tranche pour cette classe.</p>
-                )}
-                {tranches?.map((t) => {
-                  const key = `T-${t.id}`;
-                  const { remaining } = lineFor(key, Number(t.amount));
-                  const checked = key in selectedAmounts;
-                  return (
-                    <label
-                      key={t.id}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 text-sm ${
-                        remaining <= 0 ? 'opacity-50' : 'cursor-pointer hover:bg-paper'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          disabled={remaining <= 0}
-                          checked={checked}
-                          onChange={() => toggleLine(key, remaining)}
-                        />
-                        {t.label}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {checked ? (
-                          <input
-                            type="number"
-                            min={0}
-                            max={remaining}
-                            step="0.01"
-                            value={selectedAmounts[key]}
-                            onChange={(e) => updateAmount(key, e.target.value, remaining)}
-                            className="font-tabular w-28 rounded border border-border px-2 py-1 text-right text-sm"
-                          />
-                        ) : (
-                          <span className="font-tabular text-ink-soft">
-                            {remaining <= 0 ? 'Soldé' : `Reste ${currency.format(remaining)}`}
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-ink">Autres frais</p>
-              <div className="divide-y divide-border rounded-lg border border-border">
-                {applicableFees.length === 0 && (
-                  <p className="px-3 py-3 text-sm text-ink-soft">Aucun frais applicable à cette classe.</p>
-                )}
-                {applicableFees.map((fee) => {
-                  const key = `F-${fee.id}`;
-                  const { remaining } = lineFor(key, Number(fee.amount));
-                  const checked = key in selectedAmounts;
-                  return (
-                    <label
-                      key={fee.id}
-                      className={`flex items-center justify-between gap-3 px-3 py-2.5 text-sm ${
-                        remaining <= 0 ? 'opacity-50' : 'cursor-pointer hover:bg-paper'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          disabled={remaining <= 0}
-                          checked={checked}
-                          onChange={() => toggleLine(key, remaining)}
-                        />
-                        {fee.label}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {checked ? (
-                          <input
-                            type="number"
-                            min={0}
-                            max={remaining}
-                            step="0.01"
-                            value={selectedAmounts[key]}
-                            onChange={(e) => updateAmount(key, e.target.value, remaining)}
-                            className="font-tabular w-28 rounded border border-border px-2 py-1 text-right text-sm"
-                          />
-                        ) : (
-                          <span className="font-tabular text-ink-soft">
-                            {remaining <= 0 ? 'Soldé' : `Reste ${currency.format(remaining)}`}
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-success-soft px-4 py-3">
-              <span className="text-sm font-medium text-success">Total à encaisser</span>
-              <span className="font-tabular text-lg font-semibold text-success">{currency.format(total)} XOF</span>
-            </div>
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
             Annuler
           </button>
           <button
             type="submit"
             disabled={createPayment.isPending || total <= 0}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-primary-dark disabled:opacity-50"
           >
-            {createPayment.isPending ? 'Encaissement...' : 'Encaisser'}
+            {createPayment.isPending && <Spinner />}
+            {createPayment.isPending ? 'Encaissement…' : total > 0 ? `Encaisser ${formatAmount(total)}` : 'Encaisser'}
           </button>
         </div>
       </form>

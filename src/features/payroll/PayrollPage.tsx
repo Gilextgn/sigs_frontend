@@ -7,8 +7,8 @@ import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useMarkPayrollPaid, usePayrollEntries, type PayrollEntryRow } from './usePayroll';
 import { PayrollFormModal } from './PayrollFormModal';
 import { PayrollDetailModal } from './PayrollDetailModal';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function PayrollPage() {
   const [period, setPeriod] = useState('');
@@ -35,7 +35,7 @@ export default function PayrollPage() {
           onChange={(e) => setPeriod(e.target.value)}
           className="w-full max-w-[200px] rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
-        <button onClick={() => setModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+        <button onClick={() => setModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
           <Plus className="h-4 w-4" />
           Nouvelle fiche
         </button>

@@ -141,7 +141,7 @@ export default function SchedulePage() {
         </div>
         <div className="mt-3 flex gap-3">
           <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Salle (optionnel)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-          <button type="button" onClick={addSchedule} className="flex items-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-medium text-white">
+          <button type="button" onClick={addSchedule} className="flex items-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-medium text-on-success">
             <Plus className="h-4 w-4" /> Ajouter au planning
           </button>
         </div>

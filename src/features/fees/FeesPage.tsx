@@ -8,8 +8,8 @@ import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteFeeType, useFeeTypes, type FeeTypeRow } from './useFeeTypes';
 import { FeeFormModal } from './FeeFormModal';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function FeesPage() {
   const { hasPermission } = useAuth();
@@ -45,7 +45,7 @@ export default function FeesPage() {
         {canManage && (
           <button
             onClick={() => setModalState({ open: true, editing: null })}
-            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark"
           >
             <Plus className="h-4 w-4" />
             Nouveau frais

@@ -8,8 +8,8 @@ import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteTeacher, useTeachers, type TeacherRow } from './useTeachers';
 import { TeacherFormModal } from './TeacherFormModal';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function TeachersPage() {
   const { hasPermission } = useAuth();
@@ -48,7 +48,7 @@ export default function TeachersPage() {
           <option value="inactive">Inactifs</option>
         </select>
         {canManage && (
-          <button onClick={openCreate} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+          <button onClick={openCreate} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
             <UserPlus className="h-4 w-4" />
             Nouvel enseignant
           </button>

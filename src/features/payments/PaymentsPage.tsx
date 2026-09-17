@@ -9,11 +9,11 @@ import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { viewIconClass, downloadIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { downloadPaymentReceiptPdf } from '@/shared/lib/pdf';
-import { useDeletePayment, usePayments, type PaymentRow } from './usePayments';
-import { NewPaymentModal } from './NewPaymentModal';
+import { toReceiptData, useDeletePayment, usePayments, type PaymentRow } from './usePayments';
+import { usePaymentDesk } from './PaymentDesk';
 import { PaymentDetailModal } from './PaymentDetailModal';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value));
@@ -21,7 +21,7 @@ function formatDate(value: string) {
 
 export default function PaymentsPage() {
   const { hasPermission } = useAuth();
-  const [modalOpen, setModalOpen] = useState(false);
+  const { openPayment, openStudent } = usePaymentDesk();
   const [detailId, setDetailId] = useState<number | null>(null);
   const [toDelete, setToDelete] = useState<PaymentRow | null>(null);
 
@@ -36,10 +36,10 @@ export default function PaymentsPage() {
   // Permet au dashboard (bouton "Nouveau paiement") d'ouvrir directement le formulaire.
   useEffect(() => {
     if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
-      setModalOpen(true);
+      openPayment();
       navigate(location.pathname, { replace: true, state: null });
     }
-  }, [location, navigate]);
+  }, [location, navigate, openPayment]);
 
   async function handleConfirmDelete() {
     if (!toDelete) return;
@@ -48,36 +48,23 @@ export default function PaymentsPage() {
   }
 
   async function handleDownload(payment: PaymentRow) {
-    await downloadPaymentReceiptPdf(
-      {
-        reference_code: payment.reference_code,
-        payment_date: payment.payment_date,
-        student: payment.student,
-        cashier: payment.cashier,
-        items: payment.items.map((item) => ({
-          label: item.item_type === 'TRANCHE' ? 'Tranche' : 'Autre frais',
-          paid_amount: item.paid_amount,
-        })),
-        total_paid_amount: payment.total_paid_amount,
-      },
-      settings ?? null,
-    );
+    await downloadPaymentReceiptPdf(toReceiptData(payment), settings ?? null);
   }
 
   return (
     <div className="space-y-4">
       {hasPermission('payments.create') && (
         <div className="flex justify-end">
-          <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+          <button onClick={() => openPayment()} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
             <Plus className="h-4 w-4" />
-            Nouveau paiement
+            Encaisser
           </button>
         </div>
       )}
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[960px] text-left text-sm">
           <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
             <tr>
               <th className="px-4 py-3">Référence</th>
@@ -101,14 +88,34 @@ export default function PaymentsPage() {
             )}
             {pageRows.map((payment) => (
               <tr key={payment.id} className="transition hover:bg-paper">
-                <td className="font-tabular px-4 py-3 text-ink-soft">{payment.reference_code}</td>
-                <td className="px-4 py-3 font-medium text-ink">
-                  {payment.student ? `${payment.student.first_name} ${payment.student.last_name}` : '—'}
+                <td className="font-tabular px-4 py-3 whitespace-nowrap text-ink-soft">{payment.reference_code}</td>
+                <td className="px-4 py-3">
+                  {payment.student ? (
+                    <button
+                      type="button"
+                      onClick={() => openStudent(payment.student!.id)}
+                      className="text-left font-medium text-ink transition hover:text-primary"
+                    >
+                      {payment.student.first_name} {payment.student.last_name}
+                      <span className="block text-xs font-normal text-ink-soft">{payment.student.school_class?.label ?? ''}</span>
+                    </button>
+                  ) : (
+                    '—'
+                  )}
                 </td>
-                <td className="font-tabular px-4 py-3 text-ink-soft">{formatDate(payment.payment_date)}</td>
-                <td className="px-4 py-3 text-ink-soft">{payment.items.length} ligne(s)</td>
+                <td className="font-tabular px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(payment.payment_date)}</td>
+                <td className="px-4 py-3">
+                  <span className="block max-w-[220px] truncate text-ink-soft" title={payment.items.map((item) => item.label).join(', ')}>
+                    {payment.items.map((item) => item.label).join(', ')}
+                  </span>
+                  {payment.is_partial && (
+                    <span className="mt-0.5 inline-block rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-semibold text-gold">
+                      Acompte · reste {currency.format(payment.items.reduce((sum, item) => sum + Number(item.remaining_after), 0))}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-ink-soft">{payment.cashier?.full_name ?? '—'}</td>
-                <td className="font-tabular px-4 py-3 text-right font-medium text-success">
+                <td className="font-tabular px-4 py-3 text-right font-medium whitespace-nowrap text-success">
                   +{currency.format(Number(payment.total_paid_amount))} XOF
                 </td>
                 <td className="px-4 py-3">
@@ -150,7 +157,6 @@ export default function PaymentsPage() {
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 
-      {modalOpen && <NewPaymentModal onClose={() => setModalOpen(false)} />}
       {detailId !== null && <PaymentDetailModal paymentId={detailId} onClose={() => setDetailId(null)} />}
 
       <ConfirmDialog

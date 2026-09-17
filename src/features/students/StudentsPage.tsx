@@ -10,7 +10,7 @@ import { editIconClass, deleteIconClass, viewIconClass } from '@/shared/componen
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteStudent, useStudents, type StudentRow } from './useStudents';
 import { StudentFormModal } from './StudentFormModal';
-import { StudentDetailModal } from './StudentDetailModal';
+import { usePaymentDesk } from '@/features/payments/PaymentDesk';
 import { ReEnrollStudentModal } from './ReEnrollStudentModal';
 import { STUDENT_STATUS_LABELS, STUDENT_STATUS_TONES } from './studentStatus';
 
@@ -21,10 +21,17 @@ export default function StudentsPage() {
     open: false,
     editing: null,
   });
-  const [viewing, setViewing] = useState<StudentRow | null>(null);
+  const { openStudent } = usePaymentDesk();
   const [toDelete, setToDelete] = useState<StudentRow | null>(null);
   const [reEnrollOpen, setReEnrollOpen] = useState(false);
-  const { data, isLoading, isError } = useStudents({ search });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  // Les noms sont chiffrés en base : chaque recherche parcourt tout
+  // l'effectif côté serveur, on attend donc la fin de la frappe.
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+  const { data, isLoading, isError } = useStudents({ search: debouncedSearch });
   const deleteStudent = useDeleteStudent();
   const { pageRows, ...pagination } = usePaginatedRows(data?.data);
 
@@ -53,7 +60,7 @@ export default function StudentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un matricule..."
+            placeholder="Nom ou matricule…"
             className="w-full rounded-lg border border-border bg-surface py-2 pr-3 pl-9 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -70,7 +77,7 @@ export default function StudentsPage() {
           {hasPermission('students.create') && (
             <button
               onClick={() => setModalState({ open: true, editing: null })}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark"
             >
               <UserPlus className="h-4 w-4" />
               Nouvel élève
@@ -123,7 +130,7 @@ export default function StudentsPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <button onClick={() => setViewing(student)} className={viewIconClass} aria-label="Voir">
+                    <button onClick={() => openStudent(student.id)} className={viewIconClass} aria-label="Voir">
                       <Eye className="h-4 w-4" />
                     </button>
                     {hasPermission('students.update') && (
@@ -150,7 +157,6 @@ export default function StudentsPage() {
         <StudentFormModal editing={modalState.editing} onClose={() => setModalState({ open: false, editing: null })} />
       )}
 
-      {viewing && <StudentDetailModal student={viewing} onClose={() => setViewing(null)} />}
 
       {reEnrollOpen && (
         <ReEnrollStudentModal

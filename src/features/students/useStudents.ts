@@ -35,9 +35,10 @@ export interface NewStudentPayload {
   };
 }
 
-export function useStudents(params: { search?: string; classId?: number | ''; status?: string }) {
+export function useStudents(params: { search?: string; classId?: number | ''; status?: string }, enabled = true) {
   return useQuery({
     queryKey: ['students', params],
+    enabled,
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedStudents>('/students', {
         params: {
@@ -85,10 +86,85 @@ export function useUpdateStudent() {
 
 export interface UnpaidItemRow {
   type: 'TRANCHE' | 'AUTRE_FRAIS';
+  id: number;
   label: string;
   amount: number;
   paid: number;
   remaining: number;
+  /** "partial" : acompte déjà versé, la ligne reste due. */
+  status: 'unpaid' | 'partial';
+}
+
+export interface StudentBalance {
+  theoretical_amount: number;
+  paid_amount: number;
+  /** Reste sur la scolarité (tranches), même base que la liste des débiteurs. */
+  outstanding_amount: number;
+  /** Lignes non soldées, tranches et frais obligatoires. */
+  unpaid_items: UnpaidItemRow[];
+}
+
+export function useStudent(id: number | null) {
+  return useQuery({
+    queryKey: ['students', 'detail', id],
+    enabled: id !== null,
+    queryFn: async () => (await apiClient.get<{ data: StudentRow }>(`/students/${id}`)).data.data,
+  });
+}
+
+export function useStudentBalance(id: number | null) {
+  return useQuery({
+    queryKey: ['students', 'balance', id],
+    enabled: id !== null,
+    queryFn: async () => (await apiClient.get<StudentBalance>(`/students/${id}/balance`)).data,
+  });
+}
+
+export type ReEnrollmentState = 're_enrolled' | 'blocked' | 'pending';
+
+export interface ReEnrollmentProgressStudent {
+  student_id: number;
+  matricule: string;
+  full_name: string;
+  guardian: { full_name: string; phone: string } | null;
+  previous_class: { id: number; label: string | null };
+  current_class_id: number | null;
+  state: ReEnrollmentState;
+  previous_year_outstanding: number;
+  blocking_outstanding: number;
+}
+
+export interface ReEnrollmentProgress {
+  active_year: { id: number; code: string; closed_at: string | null } | null;
+  previous_year: { id: number; code: string; closed_at: string | null } | null;
+  totals: { expected: number; re_enrolled: number; blocked: number; pending: number; new_students: number } | null;
+  classes: { class_id: number; label: string | null; expected: number; re_enrolled: number; blocked: number; pending: number }[];
+  students: ReEnrollmentProgressStudent[];
+}
+
+export function useReEnrollmentProgress(enabled = true) {
+  return useQuery({
+    queryKey: ['students', 're-enrollment-progress'],
+    enabled,
+    queryFn: async () => (await apiClient.get<ReEnrollmentProgress>('/students/re-enrollment-progress')).data,
+  });
+}
+
+export function useBulkReEnroll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { class_id: number; student_ids: number[] }) =>
+      (
+        await apiClient.post<{ enrolled: number[]; refused: { student_id: number; full_name: string; reason: string }[] }>(
+          '/students/re-enroll-bulk',
+          payload,
+        )
+      ).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
 }
 
 export interface ClosedYearDebtRow {

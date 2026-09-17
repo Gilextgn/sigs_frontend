@@ -77,7 +77,7 @@ export default function SubjectsPage() {
           <p className="mt-1 text-sm text-ink-soft">Gérez les matières utilisées dans les affectations et les emplois du temps.</p>
         </div>
         {canManage && (
-          <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark">
+          <button type="button" onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
             <Plus className="h-4 w-4" /> Nouvelle matière
           </button>
         )}
@@ -140,7 +140,7 @@ export default function SubjectsPage() {
             </Field>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setModalState({ open: false, editing: null })} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink">Annuler</button>
-              <button type="submit" disabled={isSaving} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{isSaving ? 'Enregistrement...' : 'Enregistrer'}</button>
+              <button type="submit" disabled={isSaving} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary disabled:opacity-60">{isSaving ? 'Enregistrement...' : 'Enregistrer'}</button>
             </div>
           </form>
         </Modal>

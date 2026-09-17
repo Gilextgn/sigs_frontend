@@ -10,13 +10,16 @@ import {
   Menu,
   Moon,
   Repeat,
-  Search,
+  HandCoins,
   ShieldCheck,
   Sun,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useTheme } from '@/shared/lib/ThemeContext';
-import { useTopDebtors } from '@/features/dashboard/useDashboardData';
+import { useActiveYear, useTopDebtors } from '@/features/dashboard/useDashboardData';
+import { usePaymentDesk } from '@/features/payments/PaymentDesk';
+import { GlobalSearch } from './GlobalSearch';
+import { formatNumber } from '@/shared/lib/format';
 import { ConfirmDialog } from './ConfirmDialog';
 import { findBreadcrumbTrail } from './navItems';
 
@@ -42,13 +45,16 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
-  const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const { data: debtors } = useTopDebtors();
-  const notifItems = (debtors ?? []).slice(0, 5);
+  const { hasPermission } = useAuth();
+  const { openPayment, openStudent, canPay } = usePaymentDesk();
+  const { data: activeYear } = useActiveYear();
+  const { data: debtors } = useTopDebtors(hasPermission('dashboard.view'));
+  const notifItems = debtors?.items ?? [];
+  const debtorsCount = debtors?.debtors_count ?? 0;
 
   const notifRef = useClickOutside(() => setNotifOpen(false));
   const profileRef = useClickOutside(() => setProfileOpen(false));
@@ -80,7 +86,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
               {trail.map((crumb, index) => {
                 const isLast = index === trail.length - 1;
                 return (
-                  <li key={`${crumb.label}-${index}`} className="flex items-center gap-1.5">
+                  <li key={`${crumb.label}-${index}`} className={`items-center gap-1.5 ${isLast ? 'flex' : 'hidden sm:flex'}`}>
                     {isLast ? (
                       <span className="max-w-[200px] truncate text-[13.5px] font-semibold text-ink sm:max-w-xs">
                         {crumb.label}
@@ -102,24 +108,29 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
         {/* Droite : recherche, thème, notifications, profil */}
         <div className="flex shrink-0 items-center gap-1.5">
-          <div className={`flex items-center overflow-hidden rounded-full transition-all ${searchOpen ? 'bg-paper ring-2 ring-primary/30' : ''}`}>
+          <GlobalSearch />
+
+          {activeYear && (
+            <span
+              title={activeYear.closed_at ? 'Année en cours, clôturée' : 'Année en cours'}
+              className="hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-ink-soft lg:inline-flex"
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${activeYear.closed_at ? 'bg-ink-muted' : 'bg-primary'}`} />
+              <span className="font-tabular">{activeYear.code}</span>
+            </span>
+          )}
+
+          {canPay && (
             <button
               type="button"
-              onClick={() => setSearchOpen((o) => !o)}
-              aria-label="Rechercher"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-primary"
+              onClick={() => openPayment()}
+              className="flex h-9 items-center gap-2 rounded-lg bg-primary px-2.5 text-sm font-semibold text-on-primary transition hover:bg-primary-dark sm:px-3.5"
+              aria-label="Encaisser un paiement"
             >
-              <Search className="h-[17px] w-[17px]" />
+              <HandCoins className="h-4 w-4" />
+              <span className="hidden sm:inline">Encaisser</span>
             </button>
-            {searchOpen && (
-              <input
-                autoFocus
-                type="search"
-                placeholder="Rechercher..."
-                className="w-40 bg-transparent py-1.5 pr-3 text-sm text-ink outline-none placeholder:text-ink-soft sm:w-56"
-              />
-            )}
-          </div>
+          )}
 
           <button
             type="button"
@@ -140,17 +151,22 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
               className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-primary"
             >
               <Bell className="h-[17px] w-[17px]" />
-              {notifItems.length > 0 && (
-                <span className="absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full border-2 border-surface bg-danger px-0.5 text-[10px] font-bold text-white">
-                  {notifItems.length > 9 ? '9+' : notifItems.length}
+              {debtorsCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-surface bg-danger px-0.5 text-[9px] font-bold text-on-danger">
+                  {debtorsCount > 99 ? '99+' : debtorsCount}
                 </span>
               )}
             </button>
 
             {notifOpen && (
               <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
-                <div className="border-b border-border px-4 py-3 text-[13px] font-bold text-ink">
-                  Élèves les plus débiteurs
+                <div className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
+                  <span className="text-[13px] font-bold text-ink">Plus gros restes à payer</span>
+                  {debtors && (
+                    <span className="text-[11px] text-ink-soft">
+                      {debtorsCount} famille{debtorsCount > 1 ? 's' : ''} en retard
+                    </span>
+                  )}
                 </div>
                 {notifItems.length === 0 ? (
                   <p className="px-4 py-6 text-center text-[13px] text-ink-soft">Aucune alerte pour le moment.</p>
@@ -158,20 +174,34 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
                   <ul className="max-h-80 space-y-0.5 overflow-y-auto p-1.5">
                     {notifItems.map((debtor) => (
                       <li key={debtor.student_id}>
-                        <Link
-                          to="/debtors"
-                          onClick={() => setNotifOpen(false)}
-                          className="flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-ink no-underline transition hover:bg-paper"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotifOpen(false);
+                            openStudent(debtor.student_id);
+                          }}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-paper"
                         >
-                          <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
-                          <span>
-                            <strong>{debtor.full_name}</strong> ({debtor.class ?? '—'}) doit encore{' '}
-                            {new Intl.NumberFormat('fr-FR').format(debtor.outstanding_amount)} XOF
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-ink">{debtor.full_name}</span>
+                            <span className="block truncate text-xs text-ink-soft">{debtor.class ?? '—'}</span>
                           </span>
-                        </Link>
+                          <span className="font-tabular shrink-0 font-semibold text-danger">
+                            {formatNumber(debtor.outstanding_amount)}
+                          </span>
+                        </button>
                       </li>
                     ))}
                   </ul>
+                )}
+                {debtorsCount > notifItems.length && (
+                  <Link
+                    to="/debtors"
+                    onClick={() => setNotifOpen(false)}
+                    className="block border-t border-border px-4 py-2.5 text-center text-xs font-semibold text-primary no-underline hover:bg-paper"
+                  >
+                    Voir les {debtorsCount} débiteurs
+                  </Link>
                 )}
               </div>
             )}
@@ -186,10 +216,10 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
               aria-haspopup="true"
               aria-expanded={profileOpen}
               className={`flex items-center gap-2.5 rounded-full border py-1 pr-3 pl-1 transition ${
-                profileOpen ? 'border-primary/40 shadow-[0_0_0_3px_rgba(43,76,126,0.15)]' : 'border-transparent hover:border-border'
+                profileOpen ? 'border-primary/40 ring-4 ring-primary/15' : 'border-transparent hover:border-border'
               }`}
             >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-[12px] font-bold text-white">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-[12px] font-bold text-on-primary">
                 {initials}
               </span>
               <span className="hidden flex-col items-start leading-tight sm:flex">
@@ -201,15 +231,15 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
             {profileOpen && (
               <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
-                <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-dark px-5 py-5">
-                  <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-white/8" />
+                <div className="relative overflow-hidden bg-sidebar px-5 py-5">
+                  <div className="pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-sidebar-accent/10" />
                   <div className="relative flex items-center gap-3.5">
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-white/35 bg-white/15 text-base font-extrabold text-white">
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-sidebar-accent/40 bg-sidebar-accent/15 text-base font-bold text-sidebar-accent">
                       {initials}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-bold text-white">{user?.full_name}</p>
-                      <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                      <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-sidebar-text">
                         <ShieldCheck className="h-3 w-3" />
                         {user?.role}
                       </span>

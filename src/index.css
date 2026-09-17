@@ -6,41 +6,45 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Inter (texte) + Plus Jakarta Sans (titres) : duo sans-serif de tableau
-     de bord, plus neutre et professionnel que le serif précédent. */
-  --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  /* Space Grotesk partout : une seule famille, chiffres nets, caractère
+     affirmé sans être décoratif. Les montants gardent IBM Plex Mono. */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Réservées à la page d'accueil publique (LandingPage) : typo distincte du
-     reste de l'appli (tableau de bord), sans toucher --font-display/--font-sans
-     utilisés partout ailleurs. */
-  --font-landing: "Outfit", "Plus Jakarta Sans", sans-serif;
+  /* Réservées à la page d'accueil publique (LandingPage). */
+  --font-landing: "Outfit", "Space Grotesk", sans-serif;
   --font-landing-serif: "Instrument Serif", serif;
 
-  /* Palette "registre scolaire" — valeurs par défaut (clair).
-     Teintes plus franches que la version d'origine, sans partir sur du
-     saturé : les couleurs servent à signaler un statut, pas à décorer. */
-  --color-paper: #F4F6FB;
+  /* Palette graphite + émeraude — clair (par défaut).
+     L'émeraude est la seule couleur d'accent : elle désigne l'action et
+     l'argent encaissé. Rouge et ambre ne servent qu'aux statuts. */
+  --color-paper: #F4F6F8;
   --color-surface: #FFFFFF;
-  --color-surface-alt: #FAFBFD;
-  --color-ink: #161D33;
-  --color-ink-soft: #5A6280;
-  --color-primary: #2557C7;
-  --color-primary-dark: #1A3F99;
-  --color-primary-soft: #E6EDFC;
-  --color-success: #12916A;
-  --color-success-soft: #E0F4EE;
+  --color-surface-alt: #F9FAFB;
+  --color-ink: #10151C;
+  --color-ink-soft: #5C6675;
+  --color-ink-muted: #8A93A5;
+  --color-primary: #0E9F6E;
+  --color-primary-dark: #0A7A54;
+  --color-primary-soft: #E4F5EE;
+  --color-on-primary: #FFFFFF;
+  --color-success: #0E9F6E;
+  --color-success-soft: #E4F5EE;
+  --color-on-success: #FFFFFF;
   --color-danger: #D14343;
-  --color-danger-soft: #FCE8E8;
-  --color-gold: #DB9A22;
-  --color-gold-soft: #FCF1DC;
-  --color-border: #E1E5F0;
+  --color-danger-soft: #FBEAEA;
+  --color-on-danger: #FFFFFF;
+  --color-gold: #B87914;
+  --color-gold-soft: #FBF1DE;
+  --color-border: #E3E7EC;
+  --color-track: #EAEDF1;
 
-  /* Sidebar & topbar — dégradé encre bleu */
-  --color-sidebar-from: #101C3A;
-  --color-sidebar-to: #21458A;
-  --color-sidebar-accent: #5B9BFF;
+  /* Barre latérale graphite dans les deux thèmes. */
+  --color-sidebar: #0E1117;
+  --color-sidebar-line: rgba(255, 255, 255, 0.07);
+  --color-sidebar-text: #9AA3B5;
+  --color-sidebar-accent: #2FD98A;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -49,25 +53,28 @@
    bascule automatiquement, sans classes dark: à multiplier partout.
    ══════════════════════════════════════════════════════════════ */
 .dark {
-  --color-paper: #0A1220;
-  --color-surface: #111B2E;
-  --color-surface-alt: #16233A;
-  --color-ink: #E9ECF6;
-  --color-ink-soft: #93A0C2;
-  --color-primary: #6693F0;
-  --color-primary-dark: #93B5F7;
-  --color-primary-soft: rgba(102, 147, 240, 0.18);
-  --color-success: #3EC79A;
-  --color-success-soft: rgba(62, 199, 154, 0.16);
-  --color-danger: #F07070;
-  --color-danger-soft: rgba(240, 112, 112, 0.16);
-  --color-gold: #EFBB5A;
-  --color-gold-soft: rgba(239, 187, 90, 0.16);
-  --color-border: #223050;
+  --color-paper: #0E1117;
+  --color-surface: #12161E;
+  --color-surface-alt: #161B24;
+  --color-ink: #E7EAF0;
+  --color-ink-soft: #A0A8B8;
+  --color-ink-muted: #6B7386;
+  --color-primary: #2FD98A;
+  --color-primary-dark: #5BE3A4;
+  --color-primary-soft: #10281E;
+  --color-on-primary: #081410;
+  --color-success: #2FD98A;
+  --color-success-soft: #10281E;
+  --color-on-success: #081410;
+  --color-danger: #F98080;
+  --color-danger-soft: rgba(249, 128, 128, 0.14);
+  --color-on-danger: #1A0808;
+  --color-gold: #F5C451;
+  --color-gold-soft: rgba(245, 196, 81, 0.14);
+  --color-border: #1F2530;
+  --color-track: #1C212B;
 
-  --color-sidebar-from: #060B16;
-  --color-sidebar-to: #16306B;
-  --color-sidebar-accent: #6BA6FF;
+  --color-sidebar: #080A0F;
 
   color-scheme: dark;
 }
@@ -95,7 +102,7 @@
   h1, h2, h3 {
     font-family: var(--font-display);
     color: var(--color-ink);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {
@@ -109,9 +116,11 @@
 }
 
 @layer utilities {
+  /* Chiffres à chasse fixe dans la police du texte : les colonnes de
+     montants s'alignent sans basculer sur une police machine à écrire. */
   .font-tabular {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -145,6 +154,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes fade-in {

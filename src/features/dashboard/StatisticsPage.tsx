@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useDashboardStatistics } from './useDashboardData';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function StatisticsPage() {
   const [days, setDays] = useState(30);
@@ -14,7 +14,7 @@ export default function StatisticsPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-medium tracking-wide text-primary uppercase">Pilotage</p>
+          <p className="text-xs font-medium tracking-wide text-primary uppercase">Caisse</p>
           <h2 className="mt-1 font-display text-2xl font-semibold text-ink">Statistiques et évolution</h2>
           <p className="mt-1 text-sm text-ink-soft">Suivez les encaissements et leur progression dans le temps.</p>
         </div>
@@ -54,12 +54,12 @@ export default function StatisticsPage() {
           {isLoading ? <div className="grid h-full place-items-center text-sm text-ink-soft">Chargement...</div> : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data?.daily ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs><linearGradient id="collection" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2F8F6F" stopOpacity={0.32} /><stop offset="95%" stopColor="#2F8F6F" stopOpacity={0.02} /></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E4E7EF" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(value) => value.slice(5)} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => `${Math.round(value / 1000)}k`} />
-                <Tooltip formatter={(value) => [`${currency.format(Number(value))} XOF`, 'Encaissé']} />
-                <Area type="monotone" dataKey="amount" stroke="#2F8F6F" fill="url(#collection)" strokeWidth={2} />
+                <defs><linearGradient id="collection" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.32} /><stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.02} /></linearGradient></defs>
+                <CartesianGrid vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} tickFormatter={(value) => value.slice(5)} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--color-ink-muted)' }} tickFormatter={(value) => `${Math.round(value / 1000)}k`} />
+                <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, color: 'var(--color-ink)' }} formatter={(value) => [`${currency.format(Number(value))} XOF`, 'Encaissé']} />
+                <Area type="monotone" dataKey="amount" stroke="var(--color-primary)" fill="url(#collection)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           )}

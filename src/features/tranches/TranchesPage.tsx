@@ -10,8 +10,8 @@ import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useDeleteTranche, useTranches, type TrancheRow } from './useTranches';
 import { TrancheFormModal } from './TrancheFormModal';
 import { inputClass } from '@/shared/components/Field';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 function formatDate(value: string | null) {
   if (!value) return '—';
@@ -57,7 +57,7 @@ export default function TranchesPage() {
         {canManage && (
           <button
             onClick={() => setModalState({ open: true, editing: null })}
-            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+            className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark"
           >
             <Plus className="h-4 w-4" />
             Nouvelle tranche

@@ -1,5 +1,5 @@
+import { Loader } from '@/shared/components/Loader';
 import { Navigate, Outlet } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 
 export function RequireAuth() {
@@ -8,7 +8,7 @@ export function RequireAuth() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader />
       </div>
     );
   }

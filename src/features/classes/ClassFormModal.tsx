@@ -125,7 +125,7 @@ export function ClassFormModal({
           <button
             type="submit"
             disabled={isSaving}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
           >
             {isSaving ? 'Enregistrement...' : 'Enregistrer'}
           </button>

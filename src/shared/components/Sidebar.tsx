@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useTopDebtors } from '@/features/dashboard/useDashboardData';
+import { useReEnrollmentProgress } from '@/features/students/useStudents';
 import { ConfirmDialog } from './ConfirmDialog';
+import { BrandMark } from './BrandMark';
 import { NAV_ITEMS, type NavItem } from './navItems';
 
 interface SidebarProps {
@@ -16,6 +19,12 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
   const location = useLocation();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const { data: debtors } = useTopDebtors(hasPermission('dashboard.view'));
+  const { data: progress } = useReEnrollmentProgress(hasPermission('students.view'));
+  const badges: Record<NonNullable<NavItem['badge']>, number> = {
+    reenrollments: progress?.totals?.pending ?? 0,
+    debtors: debtors?.debtors_count ?? 0,
+  };
 
   // Ouvre automatiquement le groupe qui contient la page active.
   useEffect(() => {
@@ -56,6 +65,16 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
     if (!isVisible(item)) return null;
     const indent = 12 + (depth - 1) * 14;
 
+    // Barre réduite : un groupe ne peut pas s'ouvrir, on montre donc
+    // directement les icônes de ses pages, séparées par un filet.
+    if (item.children && collapsed) {
+      return (
+        <div key={item.code} className="mt-1.5 space-y-0.5 border-t border-sidebar-line pt-1.5">
+          {item.children.map((child) => renderNode(child, 1))}
+        </div>
+      );
+    }
+
     if (item.children) {
       const isOpen = expanded.has(item.code);
       return (
@@ -64,9 +83,8 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
             type="button"
             onClick={() => toggleGroup(item.code)}
             style={{ paddingLeft: indent }}
-            className={`flex w-full items-center justify-between gap-2.5 rounded-lg py-2.5 pr-3 text-left transition ${
-              depth === 1 ? 'text-[13px] font-semibold text-white/90' : 'text-[13px] font-medium text-white/75'
-            } hover:bg-white/10 hover:text-white`}
+            title={collapsed ? item.label : undefined}
+            className="flex w-full items-center justify-between gap-2.5 rounded-lg py-2.5 pr-3 text-left text-[13.5px] font-semibold text-white/85 transition hover:bg-white/5 hover:text-white"
           >
             <span className="flex flex-1 items-center gap-2.5">
               <item.icon className="h-[17px] w-[17px] shrink-0" />
@@ -96,18 +114,28 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
         onClick={() => onCloseMobile()}
         style={{ paddingLeft: indent }}
         title={collapsed ? item.label : undefined}
-        className={`relative flex items-center gap-2.5 rounded-lg py-2.5 pr-3 text-[13.5px] font-medium no-underline transition ${
-          active ? 'bg-white/95 font-semibold text-primary shadow-md' : 'text-white/75 hover:bg-white/10 hover:text-white'
+        className={`relative flex items-center gap-2.5 rounded-lg py-2.5 pr-3 text-[13.5px] no-underline transition ${
+          active
+            ? 'bg-sidebar-accent/10 font-semibold text-sidebar-accent'
+            : 'font-medium text-sidebar-text hover:bg-white/5 hover:text-white'
         }`}
       >
         {active && (
           <span
-            className="absolute top-1 bottom-1 -left-2 w-[3px] rounded-r-full"
-            style={{ background: 'var(--color-sidebar-accent)' }}
+            className="absolute top-1.5 bottom-1.5 -left-2.5 w-[3px] rounded-r-full bg-sidebar-accent"
           />
         )}
-        <item.icon className={`h-[17px] w-[17px] shrink-0 ${active ? 'text-primary' : ''}`} />
+        <item.icon className="h-[17px] w-[17px] shrink-0" />
         {!collapsed && <span className="truncate">{item.label}</span>}
+        {!collapsed && item.badge && badges[item.badge] > 0 && (
+          <span
+            className={`font-tabular ml-auto rounded-full px-1.5 py-px text-[10.5px] font-semibold ${
+              item.badge === 'debtors' ? 'bg-[#F98080]/15 text-[#F98080]' : 'bg-sidebar-accent/15 text-sidebar-accent'
+            }`}
+          >
+            {badges[item.badge]}
+          </span>
+        )}
       </NavLink>
     );
   }
@@ -119,27 +147,17 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-shrink-0 flex-col overflow-hidden shadow-2xl transition-[width,transform] duration-250 ease-in-out md:static md:z-auto md:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-shrink-0 flex-col overflow-hidden bg-sidebar shadow-2xl transition-[width,transform] duration-250 ease-in-out md:static md:z-auto md:shadow-none ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
-        style={{
-          width: collapsed ? '68px' : '260px',
-          background: 'linear-gradient(160deg, var(--color-sidebar-from) 0%, var(--color-sidebar-to) 100%)',
-        }}
+        style={{ width: collapsed ? '68px' : '260px' }}
       >
-        <div className="flex items-center gap-3 border-b border-white/15 px-4 py-5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white/95 p-1 shadow-inner">
-            <img src="/images/branding/logo-192.png" alt="SIGS" className="h-full w-full object-contain" />
-          </span>
+        <div className="flex items-center gap-3 border-b border-sidebar-line px-4 py-5">
+          <BrandMark size={36} className="shrink-0" />
           {!collapsed && (
-            <div className="flex min-w-0 flex-col">
-              <span
-                className="truncate bg-gradient-to-r from-white via-sky-200 to-white bg-[length:200%_auto] bg-clip-text font-display text-lg font-extrabold tracking-wide text-transparent"
-                style={{ animation: 'shine 3s linear infinite' }}
-              >
-                SIGS
-              </span>
-              <span className="text-[10px] tracking-wide text-white/55">Espace administration</span>
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate font-display text-[17px] font-bold tracking-tight text-white">SIGS</span>
+              <span className="truncate text-[11px] text-sidebar-text">Gestion scolaire</span>
             </div>
           )}
         </div>
@@ -148,11 +166,12 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
           {NAV_ITEMS.map((item) => renderNode(item, 1))}
         </nav>
 
-        <div className="border-t border-white/15 px-2.5 py-3">
+        <div className="border-t border-sidebar-line px-2.5 py-3">
           <button
             type="button"
             onClick={() => setLogoutOpen(true)}
-            className={`flex w-full items-center gap-2.5 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5 text-[13.5px] font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20 hover:text-white ${
+            title={collapsed ? 'Déconnexion' : undefined}
+            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13.5px] font-medium text-sidebar-text transition hover:bg-[#F98080]/10 hover:text-[#F98080] ${
               collapsed ? 'justify-center' : ''
             }`}
           >

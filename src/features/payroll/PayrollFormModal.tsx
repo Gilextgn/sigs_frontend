@@ -88,7 +88,7 @@ export function PayrollFormModal({ onClose }: { onClose: () => void }) {
           <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
             Annuler
           </button>
-          <button type="submit" disabled={createEntry.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60">
+          <button type="submit" disabled={createEntry.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60">
             {createEntry.isPending ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>

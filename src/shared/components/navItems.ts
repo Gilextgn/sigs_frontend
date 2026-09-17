@@ -1,25 +1,27 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  LayoutDashboard,
-  BarChart3,
-  BriefcaseBusiness,
-  GraduationCap,
-  School,
-  Layers,
-  Wallet,
-  Receipt,
-  UserX,
-  Users2,
   Banknote,
-  ShieldCheck,
-  UserCog,
-  BookOpenCheck,
-  Landmark,
-  Building2,
-  Settings,
+  BarChart3,
+  BookOpen,
   CalendarDays,
   ClipboardCheck,
-  BookOpen,
+  GraduationCap,
+  HandCoins,
+  House,
+  Layers,
+  Lock,
+  Receipt,
+  RefreshCcw,
+  School,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCog,
+  Users2,
+  UserX,
+  Wallet,
+  Backpack,
+  Landmark,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -28,46 +30,56 @@ export interface NavItem {
   path?: string;
   icon: LucideIcon;
   permission?: string;
+  /** Compteur affiché à droite du libellé (travail en attente). */
+  badge?: 'reenrollments' | 'debtors';
   children?: NavItem[];
 }
 
 /**
- * Arborescence à profondeur libre (groupes pliables + feuilles), inspirée
- * du menu SEWAR : un groupe peut contenir des enfants qui sont eux-mêmes
- * des groupes. Un item sans "path" est un groupe pur (accordéon).
+ * Menu rangé par moment de vie de l'école (pas par table) : un directeur
+ * cherche « la rentrée », « la caisse », « qui me doit » — pas « tranches ».
+ * Un item sans "path" est un groupe pliable ; profondeur 2 maximum.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { code: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, permission: 'dashboard.view' },
-  { code: 'statistics', label: 'Statistiques', path: '/statistics', icon: BarChart3, permission: 'dashboard.view' },
-  { code: 'owner', label: 'Pilotage SIGS', path: '/owner', icon: BriefcaseBusiness, permission: 'dashboard.view' },
+  { code: 'home', label: 'Accueil', path: '/', icon: House, permission: 'dashboard.view' },
   {
-    code: 'scolarite',
-    label: 'Scolarité',
-    icon: BookOpenCheck,
+    code: 'rentree',
+    label: 'Rentrée',
+    icon: Backpack,
     children: [
+      { code: 'reenrollments', label: 'Réinscriptions', path: '/rentree', icon: RefreshCcw, permission: 'students.view', badge: 'reenrollments' },
       { code: 'students', label: 'Élèves', path: '/students', icon: GraduationCap, permission: 'students.view' },
       { code: 'classes', label: 'Classes', path: '/classes', icon: School, permission: 'classes.view' },
-      { code: 'tranches', label: 'Tranches', path: '/tranches', icon: Layers, permission: 'tranches.view' },
-      { code: 'fees', label: 'Autres frais', path: '/fees', icon: Wallet, permission: 'fees.view' },
     ],
   },
   {
-    code: 'finances',
-    label: 'Finances',
-    icon: Landmark,
+    code: 'caisse',
+    label: 'Caisse',
+    icon: HandCoins,
     children: [
       { code: 'payments', label: 'Paiements', path: '/payments', icon: Receipt, permission: 'payments.view' },
-      { code: 'debtors', label: 'Débiteurs', path: '/debtors', icon: UserX, permission: 'debtors.print' },
+      { code: 'statistics', label: 'Statistiques', path: '/statistics', icon: BarChart3, permission: 'dashboard.view' },
     ],
   },
   {
-    code: 'rh',
-    label: 'Ressources humaines',
-    icon: Users2,
+    code: 'recouvrement',
+    label: 'Recouvrement',
+    icon: UserX,
     children: [
+      { code: 'debtors', label: 'Débiteurs', path: '/debtors', icon: UserX, permission: 'debtors.print', badge: 'debtors' },
+      { code: 'year-closing', label: "Clôture d'année", path: '/year-closing', icon: Lock, permission: 'settings.view' },
+    ],
+  },
+  {
+    code: 'ecole',
+    label: 'École',
+    icon: Landmark,
+    children: [
+      { code: 'tranches', label: 'Tranches', path: '/tranches', icon: Layers, permission: 'tranches.view' },
+      { code: 'fees', label: 'Autres frais', path: '/fees', icon: Wallet, permission: 'fees.view' },
       { code: 'teachers', label: 'Enseignants', path: '/teachers', icon: Users2, permission: 'teachers.view' },
       { code: 'schedule', label: 'Emploi du temps', path: '/schedule', icon: CalendarDays, permission: 'teachers.view' },
-      { code: 'attendance', label: 'Présence enseignants', path: '/attendance', icon: ClipboardCheck, permission: 'teachers.view' },
+      { code: 'attendance', label: 'Présences', path: '/attendance', icon: ClipboardCheck, permission: 'teachers.view' },
       { code: 'subjects', label: 'Matières', path: '/subjects', icon: BookOpen, permission: 'teachers.view' },
       { code: 'payroll', label: 'Paie', path: '/payroll', icon: Banknote, permission: 'teachers.view' },
     ],
@@ -75,11 +87,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     code: 'admin',
     label: 'Administration',
-    icon: Building2,
+    icon: SlidersHorizontal,
     children: [
+      { code: 'settings', label: 'Paramètres', path: '/settings', icon: Settings, permission: 'settings.view' },
       { code: 'users', label: 'Utilisateurs', path: '/users', icon: UserCog, permission: 'users.manage' },
       { code: 'security', label: 'Sécurité', path: '/security', icon: ShieldCheck, permission: 'audit.view' },
-      { code: 'settings', label: 'Paramètres', path: '/settings', icon: Settings, permission: 'settings.view' },
     ],
   },
 ];
@@ -108,5 +120,5 @@ export function findBreadcrumbTrail(pathname: string, items: NavItem[] = NAV_ITE
     return null;
   }
 
-  return walk(items) ?? [{ label: 'Dashboard', path: '/' }];
+  return walk(items) ?? [{ label: 'Accueil', path: '/' }];
 }

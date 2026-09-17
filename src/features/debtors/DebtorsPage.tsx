@@ -1,5 +1,6 @@
+import { Spinner } from '@/shared/components/Loader';
 import { useState } from 'react';
-import { Download, Eye, Loader2, UserX } from 'lucide-react';
+import { Download, Eye, UserX } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
 import { useTranches } from '@/features/tranches/useTranches';
 import { useSchoolSettings } from '@/features/settings/useSettings';
@@ -9,16 +10,16 @@ import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { viewIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { downloadDebtorsListPdf } from '@/shared/lib/pdf';
-import { useDebtors, type DebtorRow } from './useDebtors';
-import { Modal } from '@/shared/components/Modal';
+import { usePaymentDesk } from '@/features/payments/PaymentDesk';
+import { useDebtors } from './useDebtors';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export default function DebtorsPage() {
   const [classId, setClassId] = useState<number | ''>('');
   const [trancheId, setTrancheId] = useState<number | ''>('');
   const [downloading, setDownloading] = useState(false);
-  const [selectedDebtor, setSelectedDebtor] = useState<DebtorRow | null>(null);
+  const { openPayment, openStudent, canPay } = usePaymentDesk();
 
   const { data: classes } = useClasses();
   const { data: tranches } = useTranches(classId);
@@ -78,16 +79,21 @@ export default function DebtorsPage() {
           disabled={downloading || isLoading || (debtors ?? []).length === 0}
           className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50"
         >
-          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {downloading ? <Spinner /> : <Download className="h-4 w-4" />}
           Télécharger en PDF
         </button>
       </div>
 
       <div className="rounded-xl border border-border bg-surface p-4">
-        <p className="text-xs font-medium tracking-wide text-ink-soft uppercase">Total restant dû</p>
-        <p className="font-tabular mt-1 text-2xl font-semibold text-danger">
-          {currency.format(totalOutstanding)} XOF
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-medium tracking-wide text-ink-soft uppercase">Total restant dû</p>
+            <p className="font-tabular mt-1 text-2xl font-semibold text-danger">{currency.format(totalOutstanding)} XOF</p>
+          </div>
+          <p className="text-sm text-ink-soft">
+            {(debtors ?? []).length} élève{(debtors ?? []).length > 1 ? 's' : ''} en retard de paiement
+          </p>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -122,7 +128,14 @@ export default function DebtorsPage() {
               return (
                 <tr key={d.student_id} className="transition hover:bg-paper">
                   <td className="font-tabular px-4 py-3 text-ink-soft">{d.matricule}</td>
-                  <td className="px-4 py-3 font-medium text-ink">{d.full_name}</td>
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => openStudent(d.student_id)} className="text-left font-medium text-ink transition hover:text-primary">
+                      {d.full_name}
+                    </button>
+                    {d.unpaid_items.some((item) => item.paid > 0) && (
+                      <span className="mt-0.5 block text-[11px] font-medium text-gold">Acompte en cours</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-ink-soft">{d.class ?? '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -142,15 +155,24 @@ export default function DebtorsPage() {
                     {currency.format(d.outstanding_amount)}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => setSelectedDebtor(d)}
+                        onClick={() => openStudent(d.student_id)}
                         className={viewIconClass}
-                        aria-label={`Voir les impayés de ${d.full_name}`}
-                        title="Voir les impayés"
+                        aria-label={`Voir la fiche de ${d.full_name}`}
+                        title="Voir les lignes impayées"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
+                      {canPay && (
+                        <button
+                          type="button"
+                          onClick={() => openPayment(d.student_id)}
+                          className="rounded-lg border border-primary/30 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary-soft"
+                        >
+                          Encaisser
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -162,24 +184,6 @@ export default function DebtorsPage() {
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 
-      {selectedDebtor && (
-        <Modal title={`Impayés de ${selectedDebtor.full_name}`} onClose={() => setSelectedDebtor(null)}>
-          <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            <div><p className="text-xs text-ink-soft">Classe</p><p className="font-medium text-ink">{selectedDebtor.class ?? '—'}</p></div>
-            <div><p className="text-xs text-ink-soft">Élève</p><p className="font-medium text-ink">{selectedDebtor.matricule}</p></div>
-            <div><p className="text-xs text-ink-soft">Total restant</p><p className="font-tabular font-semibold text-danger">{currency.format(selectedDebtor.outstanding_amount)} XOF</p></div>
-          </div>
-          <div className="divide-y divide-border rounded-lg border border-border">
-            {selectedDebtor.unpaid_items.map((item) => (
-              <div key={`${item.type}-${item.label}`} className="flex items-center justify-between gap-3 px-3 py-3 text-sm">
-                <span className="font-medium text-ink">{item.label}</span>
-                <span className="font-tabular text-right text-danger">Reste {currency.format(item.remaining)} XOF</span>
-              </div>
-            ))}
-            {selectedDebtor.unpaid_items.length === 0 && <p className="px-3 py-4 text-sm text-ink-soft">Aucun détail disponible.</p>}
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

@@ -1,10 +1,11 @@
-import { CalendarDays, Download, Loader2, ReceiptText } from 'lucide-react';
+import { Loader } from '@/shared/components/Loader';
+import { CalendarDays, Download, ReceiptText } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { downloadPayrollSlipPdf } from '@/shared/lib/pdf';
 import { usePayrollDetail } from './usePayroll';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export function PayrollDetailModal({ payrollId, onClose }: { payrollId: number; onClose: () => void }) {
   const { data: payroll, isLoading } = usePayrollDetail(payrollId);
@@ -38,7 +39,7 @@ export function PayrollDetailModal({ payrollId, onClose }: { payrollId: number; 
     <Modal title="Détail de la paie" onClose={onClose} widthClassName="max-w-3xl">
       {isLoading || !payroll ? (
         <div className="flex items-center justify-center py-10 text-ink-soft">
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader size={48} label="" />
         </div>
       ) : (
         <div className="space-y-5">
@@ -138,7 +139,7 @@ export function PayrollDetailModal({ payrollId, onClose }: { payrollId: number; 
           <button
             type="button"
             onClick={handleDownload}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition hover:bg-primary-dark"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-on-primary transition hover:bg-primary-dark"
           >
             <Download className="h-4 w-4" />
             Télécharger la fiche PDF

@@ -1,5 +1,6 @@
+import { Spinner } from '@/shared/components/Loader';
 import { useEffect, useState } from 'react';
-import { Loader2, Search, User, UserPlus } from 'lucide-react';
+import { Search, User, UserPlus } from 'lucide-react';
 import { useStudents, type StudentRow } from './useStudents';
 
 /**
@@ -32,7 +33,7 @@ export function StudentSearchSelect({
   }, [query]);
 
   const hasQuery = debouncedQuery.length >= 2;
-  const { data, isFetching } = useStudents({ search: debouncedQuery });
+  const { data, isFetching } = useStudents({ search: debouncedQuery }, hasQuery);
   const results = hasQuery ? (data?.data ?? []) : [];
 
   return (
@@ -45,7 +46,7 @@ export function StudentSearchSelect({
           placeholder={placeholder}
           className="w-full min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
         />
-        {isFetching && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-ink-soft" />}
+        {isFetching && <Spinner size={14} className="shrink-0 text-primary" />}
       </div>
 
       {debouncedQuery.length > 0 && !hasQuery && (
@@ -65,7 +66,7 @@ export function StudentSearchSelect({
                   <button
                     type="button"
                     onClick={() => onCreateNew(debouncedQuery)}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-dark"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark"
                   >
                     <UserPlus className="h-4 w-4" />
                     Créer un élève

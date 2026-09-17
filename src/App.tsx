@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { RequireAuth } from '@/features/auth/RequireAuth';
 import { AppLayout } from '@/shared/layouts/AppLayout';
+import { Loader } from '@/shared/components/Loader';
 
 // Chaque page est chargée à la demande : le bundle initial ne contient que
 // le shell (layout, auth, routeur) au lieu de l'application entière.
@@ -22,15 +22,16 @@ const UsersPage = lazy(() => import('@/features/users/UsersPage'));
 const SecurityPage = lazy(() => import('@/features/security/SecurityPage'));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
-const OwnerDashboardPage = lazy(() => import('@/features/owner/OwnerDashboardPage'));
+const RentreePage = lazy(() => import('@/features/rentree/RentreePage'));
+const YearClosingPage = lazy(() => import('@/features/settings/YearClosingPage'));
 const SchedulePage = lazy(() => import('@/features/teachers/SchedulePage'));
 const AttendancePage = lazy(() => import('@/features/teachers/AttendancePage'));
 const SubjectsPage = lazy(() => import('@/features/teachers/SubjectsPage'));
 
 function RouteFallback() {
   return (
-    <div className="grid min-h-[40vh] place-items-center">
-      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    <div className="grid min-h-[50vh] place-items-center">
+      <Loader />
     </div>
   );
 }
@@ -43,7 +44,7 @@ function HomeRoute() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader />
       </div>
     );
   }
@@ -71,7 +72,8 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route element={<AppLayout />}>
                 <Route path="/statistics" element={<StatisticsPage />} />
-                <Route path="/owner" element={<OwnerDashboardPage />} />
+                <Route path="/rentree" element={<RentreePage />} />
+                <Route path="/year-closing" element={<YearClosingPage />} />
                 <Route path="/students" element={<StudentsPage />} />
                 <Route path="/classes" element={<ClassesPage />} />
                 <Route path="/tranches" element={<TranchesPage />} />

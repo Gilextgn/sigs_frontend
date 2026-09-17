@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/shared/lib/apiClient';
+import type { UnpaidItemRow } from '@/features/students/useStudents';
 
 export interface SchoolSettings {
   school_name: string;
@@ -17,13 +18,6 @@ export interface AcademicYearRow {
   closed_at: string | null;
 }
 
-export interface UnpaidItemRow {
-  type: 'TRANCHE' | 'AUTRE_FRAIS';
-  label: string;
-  amount: number;
-  paid: number;
-  remaining: number;
-}
 
 export interface YearDebtorRow {
   student_id: number;

@@ -6,8 +6,8 @@ import { Modal } from '@/shared/components/Modal';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { StudentSearchSelect } from './StudentSearchSelect';
 import { useReEnrollStudent, useReEnrollmentContext, type StudentRow } from './useStudents';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 /**
  * Titre de section. Volontairement un <div> et non le composant Field
@@ -156,7 +156,7 @@ export function ReEnrollStudentModal({
               type="button"
               disabled={!student || !classId || reEnroll.isPending || contextLoading}
               onClick={handleSubmit}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-dark disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
             >
               {reEnroll.isPending ? 'Réinscription...' : 'Réinscrire'} <ArrowRight className="h-4 w-4" />
             </button>

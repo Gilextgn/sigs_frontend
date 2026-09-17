@@ -1,8 +1,9 @@
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { Spinner } from '@/shared/components/Loader';
+import { AlertTriangle } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { useClosingPreview, useCloseAcademicYear, type AcademicYearRow } from './useSettings';
+import { currency } from '@/shared/lib/format';
 
-const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
 export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onClose: () => void }) {
   const { data: debtors, isLoading } = useClosingPreview(year.id);
@@ -19,7 +20,7 @@ export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onCl
     <Modal title={`Clôturer ${year.code}`} onClose={onClose} widthClassName="max-w-xl">
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink-soft">
-          <Loader2 className="h-4 w-4 animate-spin" /> Calcul des restes dus...
+          <Spinner className="text-primary" /> Calcul des restes dus...
         </div>
       )}
 
@@ -33,7 +34,7 @@ export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onCl
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               {debtorCount} élève{debtorCount > 1 ? 's' : ''} encore débiteur{debtorCount > 1 ? 's' : ''}. Une fois l'année clôturée,
-              leur réinscription sera bloquée tant que le solde n'est pas réglé (sauf passage outre habilité).
+              leur réinscription sera bloquée tant que le solde n'est pas réglé.
             </p>
           </div>
           <div className="mt-4 max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
@@ -58,7 +59,7 @@ export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onCl
           type="button"
           onClick={handleClose}
           disabled={closeYear.isPending || isLoading}
-          className="rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+          className="rounded-lg bg-danger px-4 py-2 text-sm font-medium text-on-danger transition hover:opacity-90 disabled:opacity-60"
         >
           {closeYear.isPending ? 'Clôture...' : debtorCount > 0 ? `Clôturer quand même (${debtorCount} débiteur${debtorCount > 1 ? 's' : ''})` : 'Clôturer'}
         </button>
