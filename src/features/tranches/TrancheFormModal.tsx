@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { ClassPicker } from '@/shared/components/ClassPicker';
 import { useClasses } from '@/features/classes/useClasses';
 import { useCreateTranche, useUpdateTranche, useTranches, type TrancheRow } from './useTranches';
 import { currency } from '@/shared/lib/format';
@@ -61,14 +61,10 @@ export function TrancheFormModal({ editing, onClose }: { editing?: TrancheRow | 
           </div>
         )}
 
-        <Field label="Classe">
-          <SearchableSelect
-            value={classId}
-            onChange={(v) => setClassId(String(v))}
-            placeholder="Sélectionner une classe"
-            options={(classes ?? []).map((c) => ({ value: c.id, label: c.label, hint: c.cycle?.label }))}
-          />
-        </Field>
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink">Classe</p>
+          <ClassPicker value={classId ? Number(classId) : ''} onChange={(id) => setClassId(String(id))} disabled={!!editing} />
+        </div>
 
         {selectedClass && (
           <div className="rounded-lg bg-primary-soft px-3 py-2 text-xs text-primary-dark">

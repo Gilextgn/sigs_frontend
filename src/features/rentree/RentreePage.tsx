@@ -60,6 +60,21 @@ export default function RentreePage() {
 
   const activeClasses = (classes ?? []).filter((c) => c.is_active);
 
+  // Classes d'arrivée regroupées par cycle : une liste à plat devient illisible dès 15 classes.
+  const classOptions = (() => {
+    const groups = new Map<string, typeof activeClasses>();
+    for (const c of activeClasses) groups.set(c.cycle?.label ?? 'Autres', [...(groups.get(c.cycle?.label ?? 'Autres') ?? []), c]);
+    return [...groups].map(([label, items]) => (
+      <optgroup key={label} label={label}>
+        {items.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.label}
+          </option>
+        ))}
+      </optgroup>
+    ));
+  })();
+
   function setFilter(next: Filter) {
     setSelected(new Set());
     setSearchParams(next === 'all' ? {} : { state: next }, { replace: true });
@@ -300,11 +315,7 @@ export default function RentreePage() {
                   className="rounded-lg border border-border bg-paper px-2.5 py-1.5 text-xs text-ink"
                 >
                   <option value="">Tous vers…</option>
-                  {activeClasses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
+                  {classOptions}
                 </select>
                 <button type="button" onClick={toggleAll} className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-paper">
                   {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
@@ -349,11 +360,7 @@ export default function RentreePage() {
                           onChange={(e) => setTargets((t) => ({ ...t, [student.student_id]: Number(e.target.value) }))}
                           className="w-full rounded-lg border border-border bg-paper px-2 py-1.5 text-xs text-ink"
                         >
-                          {activeClasses.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.label}
-                            </option>
-                          ))}
+                          {classOptions}
                         </select>
                       ) : (
                         <span className="text-xs text-ink-soft">

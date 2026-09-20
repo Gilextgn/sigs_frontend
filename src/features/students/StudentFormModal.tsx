@@ -2,8 +2,7 @@ import { useState, type FormEvent } from 'react';
 import axios from 'axios';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { useClasses } from '@/features/classes/useClasses';
+import { ClassPicker } from '@/shared/components/ClassPicker';
 import { useCreateStudent, useUpdateStudent, type StudentRow } from './useStudents';
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -14,7 +13,6 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | null; onClose: () => void }) {
-  const { data: classes } = useClasses();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
 
@@ -111,15 +109,12 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
             </Field>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label="Classe">
-              <SearchableSelect
-                value={form.class_id}
-                onChange={(v) => setForm((f) => ({ ...f, class_id: String(v) }))}
-                placeholder="Sélectionner une classe"
-                options={(classes ?? []).map((c) => ({ value: c.id, label: c.label, hint: c.cycle?.label }))}
-              />
-            </Field>
+          <div className="mt-3">
+            <p className="mb-1.5 text-sm font-medium text-ink">Classe</p>
+            <ClassPicker value={form.class_id ? Number(form.class_id) : ''} onChange={(id) => setForm((f) => ({ ...f, class_id: String(id) }))} />
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Date de naissance">
               <input type="date" value={form.birth_date ?? ''} onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))} className={inputClass} />
             </Field>

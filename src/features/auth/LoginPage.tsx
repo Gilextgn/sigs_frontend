@@ -1,25 +1,13 @@
 import { Spinner } from '@/shared/components/Loader';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LockKeyhole, Mail, Moon, Sun } from 'lucide-react';
+import { LockKeyhole, Mail, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { BrandMark } from '@/shared/components/BrandMark';
 import { useTheme } from '@/shared/lib/ThemeContext';
 import { useAuth } from './AuthContext';
-import { LoginCarousel } from './LoginCarousel';
+import { LoginShowcase } from './LoginShowcase';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { PasswordField } from '@/shared/components/PasswordField';
-
-// Dépose tes photos dans public/images/login-carousel/ (voir README.md du dossier).
-// Les fichiers absents sont simplement ignorés par le navigateur.
-const CAROUSEL_IMAGES = [
-  '/images/login-carousel/bg1sigs.jpg',
-  '/images/login-carousel/logoSigs.jpg',
-  '/images/login-carousel/maternelle.jpg',
-  '/images/login-carousel/gradueted_students.jpg',
-  '/images/login-carousel/professeure.jpg',
-  '/images/login-carousel/meuf.jpg',
-  '/images/login-carousel/school1.jpg',
-];
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -47,47 +35,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
-      <LoginCarousel images={CAROUSEL_IMAGES} />
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:justify-end lg:pr-[7vw] xl:pr-[9vw]">
+      <LoginShowcase />
 
       <button
         type="button"
         onClick={toggleTheme}
         aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}
-        className="absolute top-4 right-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-surface/90 text-ink shadow-lg backdrop-blur transition hover:text-primary"
+        className="absolute top-4 right-4 z-20 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
       >
         {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
       </button>
 
-      <div className="relative z-10 grid w-full max-w-5xl grid-cols-1 overflow-hidden rounded-2xl shadow-2xl md:grid-cols-2">
-        {/* Volet gauche : identité, visible sur desktop, sur fond carrousel */}
-        <div className="hidden flex-col justify-between p-10 text-white md:flex">
-          <div className="flex items-center gap-3 font-display text-xl font-bold">
-            <BrandMark size={40} />
-            SIGS
-          </div>
-          <div className="space-y-3">
-            <p className="font-display text-3xl leading-tight font-medium">
-              Le registre de votre école,<br />enfin centralisé.
-            </p>
-            <p className="max-w-sm text-sm text-white/80">
-              Élèves, classes, paiements et débiteurs réunis dans un seul
-              tableau de bord, pensé pour aller vite.
-            </p>
-          </div>
-        </div>
+      {/* Marque, en haut à gauche de la scène */}
+      <div className="absolute top-5 left-5 z-10 flex items-center gap-3 text-white sm:top-7 sm:left-8">
+        <BrandMark size={40} />
+        <span className="font-display text-xl font-bold tracking-tight">SIGS</span>
+      </div>
 
-        {/* Carte de connexion */}
-        <div className="flex flex-col justify-center bg-surface px-8 py-12 sm:px-12">
-          <div className="mb-8 flex items-center gap-2.5 font-display text-lg font-bold text-ink md:hidden">
-            <BrandMark size={34} />
-            SIGS
-          </div>
-
-          <h1 className="font-display text-2xl font-semibold text-ink">Connexion</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Accédez à votre espace de gestion.
-          </p>
+      <div className="relative z-10 w-full max-w-[440px] animate-[card-in_0.8s_cubic-bezier(0.16,1,0.3,1)_both]">
+        <div className="rounded-3xl border border-white/15 bg-surface/95 p-8 shadow-[0_40px_100px_-30px_rgba(0,0,0,0.7)] backdrop-blur-2xl sm:p-10">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Bon retour</h1>
+          <p className="mt-1 text-sm text-ink-soft">Connectez-vous à l'espace de votre établissement.</p>
 
           {error && (
             <div className="mt-6 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -101,7 +70,7 @@ export default function LoginPage() {
                 Adresse e-mail
               </label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+                <Mail className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
                 <input
                   id="email"
                   type="email"
@@ -133,12 +102,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
             >
               {isSubmitting ? <Spinner /> : null}
               Se connecter
             </button>
           </form>
+
+          <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-muted">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            Connexion sécurisée · données chiffrées
+          </p>
         </div>
       </div>
     </div>

@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import axios from 'axios';
 import { AlertTriangle, ArrowRight, CalendarCheck } from 'lucide-react';
-import { useClasses } from '@/features/classes/useClasses';
 import { Modal } from '@/shared/components/Modal';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { ClassPicker } from '@/shared/components/ClassPicker';
 import { StudentSearchSelect } from './StudentSearchSelect';
 import { useReEnrollStudent, useReEnrollmentContext, type StudentRow } from './useStudents';
 import { currency } from '@/shared/lib/format';
@@ -32,7 +31,6 @@ export function ReEnrollStudentModal({
   /** L'élève cherché n'existe pas : bascule vers le formulaire d'inscription. */
   onCreateStudent: () => void;
 }) {
-  const { data: classes } = useClasses();
   const reEnroll = useReEnrollStudent();
 
   const [student, setStudent] = useState<StudentRow | null>(null);
@@ -134,12 +132,7 @@ export function ReEnrollStudentModal({
 
         {student && !blocked && !contextLoading && (
           <FieldBlock label="Classe pour l’année suivante">
-            <SearchableSelect
-              value={classId}
-              onChange={(v) => setClassId(Number(v))}
-              placeholder="Sélectionner une classe"
-              options={(classes ?? []).map((c) => ({ value: c.id, label: c.label, hint: c.cycle?.label }))}
-            />
+            <ClassPicker value={classId} onChange={setClassId} />
           </FieldBlock>
         )}
 

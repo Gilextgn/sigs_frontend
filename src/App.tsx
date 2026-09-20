@@ -1,12 +1,15 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
-import { RequireAuth } from '@/features/auth/RequireAuth';
+import { RequireAuth, RequirePlatform, RequireSchool } from '@/features/auth/RequireAuth';
+import { SuspendedScreen } from '@/features/auth/SuspendedScreen';
+import { PlatformLayout } from '@/features/platform/PlatformLayout';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { Loader } from '@/shared/components/Loader';
 
 // Chaque page est chargée à la demande : le bundle initial ne contient que
 // le shell (layout, auth, routeur) au lieu de l'application entière.
+const PlatformPage = lazy(() => import('@/features/platform/PlatformPage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const StatisticsPage = lazy(() => import('@/features/dashboard/StatisticsPage'));
@@ -39,7 +42,7 @@ function RouteFallback() {
 // "/" est publique : visiteur non connecté -> vitrine (LandingPage), connecté -> Dashboard.
 // Remplace l'ancien comportement où "/" redirigeait tout visiteur droit vers /login.
 function HomeRoute() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isPlatformOwner } = useAuth();
 
   if (isLoading) {
     return (
@@ -53,6 +56,10 @@ function HomeRoute() {
     return <LandingPage />;
   }
 
+  if (isPlatformOwner) {
+    return <Navigate to="/platform" replace />;
+  }
+
   return (
     <AppLayout>
       <DashboardPage />
@@ -60,38 +67,59 @@ function HomeRoute() {
   );
 }
 
+function AppRoutes() {
+  const { suspension } = useAuth();
+
+  // Une école suspendue n'a plus accès à rien, quelle que soit la page ouverte.
+  if (suspension) {
+    return <SuspendedScreen info={suspension} />;
+  }
+
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/" element={<HomeRoute />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route element={<RequireAuth />}>
+          <Route element={<RequirePlatform />}>
+            <Route element={<PlatformLayout />}>
+              <Route path="/platform" element={<PlatformPage />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequireSchool />}>
+            <Route element={<AppLayout />}>
+              <Route path="/statistics" element={<StatisticsPage />} />
+              <Route path="/rentree" element={<RentreePage />} />
+              <Route path="/year-closing" element={<YearClosingPage />} />
+              <Route path="/students" element={<StudentsPage />} />
+              <Route path="/classes" element={<ClassesPage />} />
+              <Route path="/tranches" element={<TranchesPage />} />
+              <Route path="/fees" element={<FeesPage />} />
+              <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/debtors" element={<DebtorsPage />} />
+              <Route path="/teachers" element={<TeachersPage />} />
+              <Route path="/schedule" element={<SchedulePage />} />
+              <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/subjects" element={<SubjectsPage />} />
+              <Route path="/payroll" element={<PayrollPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/security" element={<SecurityPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+          </Route>
+        </Route>
+      </Routes>
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<HomeRoute />} />
-            <Route path="/login" element={<LoginPage />} />
-
-            <Route element={<RequireAuth />}>
-              <Route element={<AppLayout />}>
-                <Route path="/statistics" element={<StatisticsPage />} />
-                <Route path="/rentree" element={<RentreePage />} />
-                <Route path="/year-closing" element={<YearClosingPage />} />
-                <Route path="/students" element={<StudentsPage />} />
-                <Route path="/classes" element={<ClassesPage />} />
-                <Route path="/tranches" element={<TranchesPage />} />
-                <Route path="/fees" element={<FeesPage />} />
-                <Route path="/payments" element={<PaymentsPage />} />
-                <Route path="/debtors" element={<DebtorsPage />} />
-                <Route path="/teachers" element={<TeachersPage />} />
-                <Route path="/schedule" element={<SchedulePage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/subjects" element={<SubjectsPage />} />
-                <Route path="/payroll" element={<PayrollPage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/security" element={<SecurityPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Route>
-            </Route>
-          </Routes>
-        </Suspense>
+        <AppRoutes />
       </BrowserRouter>
     </AuthProvider>
   );

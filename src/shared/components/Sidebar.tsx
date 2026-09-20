@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
-  const { hasPermission, logout } = useAuth();
+  const { user, hasPermission, logout } = useAuth();
   const location = useLocation();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -157,7 +157,9 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
           {!collapsed && (
             <div className="flex min-w-0 flex-col leading-tight">
               <span className="truncate font-display text-[17px] font-bold tracking-tight text-white">SIGS</span>
-              <span className="truncate text-[11px] text-sidebar-text">Gestion scolaire</span>
+              <span className="truncate text-[11px] text-sidebar-text" title={user?.school?.name}>
+                {user?.school?.name ?? 'Gestion scolaire'}
+              </span>
             </div>
           )}
         </div>

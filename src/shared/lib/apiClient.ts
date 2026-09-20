@@ -37,6 +37,12 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
+    // Établissement suspendu : valable sur n'importe quel appel, y compris
+    // sur une session déjà ouverte. L'application bascule alors sur l'écran
+    // de suspension au lieu d'afficher des erreurs écran par écran.
+    if (error.response?.status === 403 && error.response.data?.code === 'school_suspended') {
+      window.dispatchEvent(new CustomEvent('auth:suspended', { detail: error.response.data }));
+    }
     return Promise.reject(error);
   },
 );
