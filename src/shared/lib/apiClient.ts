@@ -43,6 +43,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 403 && error.response.data?.code === 'school_suspended') {
       window.dispatchEvent(new CustomEvent('auth:suspended', { detail: error.response.data }));
     }
+    if (error.response?.status === 403 && error.response.data?.code === 'password_change_required') {
+      window.dispatchEvent(new CustomEvent('auth:password-required'));
+    }
     return Promise.reject(error);
   },
 );

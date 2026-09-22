@@ -1,5 +1,5 @@
-import { Outlet } from 'react-router-dom';
-import { LogOut, Moon, ShieldCheck, Sun } from 'lucide-react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+import { LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { BrandMark } from '@/shared/components/BrandMark';
 import { useTheme } from '@/shared/lib/ThemeContext';
@@ -17,13 +17,13 @@ export function PlatformLayout() {
     <div className="flex min-h-dvh flex-col bg-paper">
       <header className="sticky top-0 z-30 border-b border-sidebar-line bg-sidebar text-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+          <Link to="/platform" className="flex items-center gap-3 text-white no-underline">
             <BrandMark size={34} />
             <div className="leading-tight">
               <p className="font-display text-[17px] font-bold tracking-tight">SIGS</p>
               <p className="text-[11px] text-sidebar-text">Console plateforme</p>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-1.5">
             <span className="mr-2 hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-sidebar-text md:inline-flex">
@@ -38,7 +38,17 @@ export function PlatformLayout() {
             >
               {theme === 'dark' ? <Sun className="h-[17px] w-[17px]" /> : <Moon className="h-[17px] w-[17px]" />}
             </button>
-            <span className="hidden max-w-[160px] truncate text-sm text-white/85 sm:block">{user?.full_name}</span>
+            <NavLink
+              to="/platform/account"
+              aria-label="Mon compte"
+              title="Mon compte"
+              className={({ isActive }) =>
+                `flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm no-underline transition hover:bg-white/10 hover:text-white ${isActive ? 'bg-white/10 text-white' : 'text-white/85'}`
+              }
+            >
+              <UserRound className="h-4 w-4" />
+              <span className="hidden max-w-[160px] truncate sm:block">{user?.full_name}</span>
+            </NavLink>
             <button
               type="button"
               onClick={() => logout()}

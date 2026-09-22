@@ -1,35 +1,39 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyPage } from '@/shared/lib/lazyPage';
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { RequireAuth, RequirePlatform, RequireSchool } from '@/features/auth/RequireAuth';
 import { SuspendedScreen } from '@/features/auth/SuspendedScreen';
+import { ForcePasswordChangeScreen } from '@/features/auth/ForcePasswordChangeScreen';
+import { SessionLoader } from '@/features/auth/SessionLoader';
 import { PlatformLayout } from '@/features/platform/PlatformLayout';
 import { AppLayout } from '@/shared/layouts/AppLayout';
 import { Loader } from '@/shared/components/Loader';
 
 // Chaque page est chargée à la demande : le bundle initial ne contient que
 // le shell (layout, auth, routeur) au lieu de l'application entière.
-const PlatformPage = lazy(() => import('@/features/platform/PlatformPage'));
-const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
-const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
-const StatisticsPage = lazy(() => import('@/features/dashboard/StatisticsPage'));
-const StudentsPage = lazy(() => import('@/features/students/StudentsPage'));
-const ClassesPage = lazy(() => import('@/features/classes/ClassesPage'));
-const TranchesPage = lazy(() => import('@/features/tranches/TranchesPage'));
-const FeesPage = lazy(() => import('@/features/fees/FeesPage'));
-const PaymentsPage = lazy(() => import('@/features/payments/PaymentsPage'));
-const DebtorsPage = lazy(() => import('@/features/debtors/DebtorsPage'));
-const TeachersPage = lazy(() => import('@/features/teachers/TeachersPage'));
-const PayrollPage = lazy(() => import('@/features/payroll/PayrollPage'));
-const UsersPage = lazy(() => import('@/features/users/UsersPage'));
-const SecurityPage = lazy(() => import('@/features/security/SecurityPage'));
-const SettingsPage = lazy(() => import('@/features/settings/SettingsPage'));
-const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
-const RentreePage = lazy(() => import('@/features/rentree/RentreePage'));
-const YearClosingPage = lazy(() => import('@/features/settings/YearClosingPage'));
-const SchedulePage = lazy(() => import('@/features/teachers/SchedulePage'));
-const AttendancePage = lazy(() => import('@/features/teachers/AttendancePage'));
-const SubjectsPage = lazy(() => import('@/features/teachers/SubjectsPage'));
+const PlatformPage = lazyPage(() => import('@/features/platform/PlatformPage'));
+const PlatformAccountPage = lazyPage(() => import('@/features/platform/PlatformAccountPage'));
+const LoginPage = lazyPage(() => import('@/features/auth/LoginPage'));
+const DashboardPage = lazyPage(() => import('@/features/dashboard/DashboardPage'));
+const StatisticsPage = lazyPage(() => import('@/features/dashboard/StatisticsPage'));
+const StudentsPage = lazyPage(() => import('@/features/students/StudentsPage'));
+const ClassesPage = lazyPage(() => import('@/features/classes/ClassesPage'));
+const TranchesPage = lazyPage(() => import('@/features/tranches/TranchesPage'));
+const FeesPage = lazyPage(() => import('@/features/fees/FeesPage'));
+const PaymentsPage = lazyPage(() => import('@/features/payments/PaymentsPage'));
+const DebtorsPage = lazyPage(() => import('@/features/debtors/DebtorsPage'));
+const TeachersPage = lazyPage(() => import('@/features/teachers/TeachersPage'));
+const PayrollPage = lazyPage(() => import('@/features/payroll/PayrollPage'));
+const UsersPage = lazyPage(() => import('@/features/users/UsersPage'));
+const SecurityPage = lazyPage(() => import('@/features/security/SecurityPage'));
+const SettingsPage = lazyPage(() => import('@/features/settings/SettingsPage'));
+const LandingPage = lazyPage(() => import('@/features/landing/LandingPage'));
+const RentreePage = lazyPage(() => import('@/features/rentree/RentreePage'));
+const YearClosingPage = lazyPage(() => import('@/features/settings/YearClosingPage'));
+const SchedulePage = lazyPage(() => import('@/features/teachers/SchedulePage'));
+const AttendancePage = lazyPage(() => import('@/features/teachers/AttendancePage'));
+const SubjectsPage = lazyPage(() => import('@/features/teachers/SubjectsPage'));
 
 function RouteFallback() {
   return (
@@ -42,14 +46,17 @@ function RouteFallback() {
 // "/" est publique : visiteur non connecté -> vitrine (LandingPage), connecté -> Dashboard.
 // Remplace l'ancien comportement où "/" redirigeait tout visiteur droit vers /login.
 function HomeRoute() {
-  const { user, isLoading, isPlatformOwner } = useAuth();
+  const { user, isLoading, hadSession, serverUnreachable, isPlatformOwner } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-paper">
-        <Loader />
-      </div>
-    );
+  // Personne n'était connecté sur ce navigateur : la vitrine s'affiche tout
+  // de suite, sans attendre le serveur (la vérification continue en fond et
+  // bascule sur l'application si une session existe malgré tout).
+  if (!user && !hadSession) {
+    return <LandingPage />;
+  }
+
+  if (isLoading || serverUnreachable) {
+    return <SessionLoader />;
   }
 
   if (!user) {
@@ -68,11 +75,16 @@ function HomeRoute() {
 }
 
 function AppRoutes() {
-  const { suspension } = useAuth();
+  const { suspension, user } = useAuth();
 
   // Une école suspendue n'a plus accès à rien, quelle que soit la page ouverte.
   if (suspension) {
     return <SuspendedScreen info={suspension} />;
+  }
+
+  // Mot de passe temporaire : il faut d'abord choisir le sien.
+  if (user?.must_change_password) {
+    return <ForcePasswordChangeScreen />;
   }
 
   return (
@@ -85,6 +97,7 @@ function AppRoutes() {
           <Route element={<RequirePlatform />}>
             <Route element={<PlatformLayout />}>
               <Route path="/platform" element={<PlatformPage />} />
+              <Route path="/platform/account" element={<PlatformAccountPage />} />
             </Route>
           </Route>
 

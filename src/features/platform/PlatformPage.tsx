@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, PauseCircle, Plus, PlayCircle, School, Search } from 'lucide-react';
+import { BellRing, ChevronRight, PauseCircle, Plus, PlayCircle, School, Search, Wallet } from 'lucide-react';
 import { Loader } from '@/shared/components/Loader';
-import { formatDate, timeAgo } from '@/shared/lib/format';
+import { formatDate, formatNumber, timeAgo } from '@/shared/lib/format';
+import { REMIND_DAYS_BEFORE, needsReminder, reminderPriority, remindedToday } from './billing';
+import { RecordPaymentModal } from './BillingModals';
+import { ReminderButton } from './SchoolBillingSections';
 import { CreateSchoolModal, ReactivateSchoolModal, SchoolDetailModal, SuspendSchoolModal } from './SchoolModals';
 import { StatusPill, dueLabel } from './schoolStatus';
 import { usePlatformSchools, type PlatformSchool, type SchoolStatus } from './usePlatform';
@@ -23,6 +26,12 @@ export default function PlatformPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [suspending, setSuspending] = useState<PlatformSchool | null>(null);
   const [reactivating, setReactivating] = useState<PlatformSchool | null>(null);
+  const [paying, setPaying] = useState<PlatformSchool | null>(null);
+
+  const toRemind = useMemo(
+    () => (data?.schools ?? []).filter(needsReminder).sort((a, b) => reminderPriority(a) - reminderPriority(b)),
+    [data],
+  );
 
   const schools = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -86,6 +95,67 @@ export default function PlatformPage() {
         ))}
       </div>
 
+      <div className="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-surface">
+        {[
+          ['Encaissé ce mois', data.revenue.this_month],
+          ['Mois dernier', data.revenue.last_month],
+          [`Depuis janvier ${new Date().getFullYear()}`, data.revenue.this_year],
+        ].map(([label, value]) => (
+          <div key={label} className="min-w-0 px-4 py-3">
+            <p className="truncate text-xs font-medium text-ink-soft">{label}</p>
+            <p className="font-tabular mt-0.5 truncate text-lg font-bold text-ink sm:text-xl">
+              {formatNumber(value)} <span className="text-xs font-medium text-ink-muted">XOF</span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {toRemind.length > 0 && (
+        <section className="rounded-2xl border border-gold/30 bg-gold-soft/40">
+          <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <BellRing className="h-4 w-4 text-gold" /> À relancer
+              <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">{toRemind.length}</span>
+            </h2>
+            <p className="hidden text-xs text-ink-soft sm:block">Échéance dans {REMIND_DAYS_BEFORE} jours ou moins, en retard ou suspendues</p>
+          </div>
+          <ul className="divide-y divide-gold/15">
+            {toRemind.map((school) => {
+              const due = dueLabel(school.subscription_due_at);
+              return (
+                <li key={school.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                  <button type="button" onClick={() => setDetailId(school.id)} className="min-w-0 text-left">
+                    <span className="block truncate text-sm font-medium text-ink">{school.name}</span>
+                    <span className="block truncate text-xs text-ink-soft">
+                      {school.status === 'suspended' ? 'Suspendue' : `Échéance ${due.text}`}
+                      {school.plan_amount ? ` · ${formatNumber(school.plan_amount)} XOF/mois` : ''}
+                      {' · '}
+                      {remindedToday(school) ? (
+                        <span className="font-medium text-success">relancée aujourd'hui</span>
+                      ) : school.last_reminded_at ? (
+                        `relancée ${timeAgo(school.last_reminded_at)}`
+                      ) : (
+                        'jamais relancée'
+                      )}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <ReminderButton school={school} compact />
+                    <button
+                      type="button"
+                      onClick={() => setPaying(school)}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-on-primary transition hover:bg-primary-dark"
+                    >
+                      <Wallet className="h-4 w-4" /> Encaisser
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 sm:max-w-sm">
         <Search className="h-4 w-4 shrink-0 text-ink-muted" />
         <input
@@ -136,6 +206,15 @@ export default function PlatformPage() {
                   </div>
 
                   <div className="flex items-center gap-2 md:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setPaying(school)}
+                      aria-label={`Encaisser ${school.name}`}
+                      title="Encaisser un paiement"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-primary/30 text-primary transition hover:bg-primary-soft"
+                    >
+                      <Wallet className="h-4 w-4" />
+                    </button>
                     {school.status === 'suspended' ? (
                       <button
                         type="button"
@@ -184,8 +263,13 @@ export default function PlatformPage() {
             setDetailId(null);
             setReactivating(school);
           }}
+          onRecordPayment={(school) => {
+            setDetailId(null);
+            setPaying(school);
+          }}
         />
       )}
+      {paying && <RecordPaymentModal school={paying} onClose={() => setPaying(null)} />}
     </div>
   );
 }

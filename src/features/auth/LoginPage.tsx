@@ -1,6 +1,6 @@
 import { Spinner } from '@/shared/components/Loader';
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LockKeyhole, Mail, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { BrandMark } from '@/shared/components/BrandMark';
 import { useTheme } from '@/shared/lib/ThemeContext';
@@ -10,26 +10,40 @@ import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { PasswordField } from '@/shared/components/PasswordField';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [slowSubmit, setSlowSubmit] = useState(false);
+
+  // Page demandée avant la redirection vers la connexion (voir RequireAuth).
+  const from = (location.state as { from?: string } | null)?.from;
+  const destination = from && from !== '/login' ? from : '/';
+
+  // Déjà connecté (ou session retrouvée en arrière-plan) : direction la page voulue.
+  if (user) {
+    return <Navigate to={destination} replace />;
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    const slowTimer = setTimeout(() => setSlowSubmit(true), 4000);
     try {
       await login(email, password);
-      navigate('/', { replace: true });
+      navigate(destination, { replace: true });
     } catch (err) {
       // Affiche la vraie cause (CORS, session, mot de passe, throttle...)
       // au lieu d'un message générique qui masquerait le problème réel.
       setError(getApiErrorMessage(err, 'Identifiants invalides. Vérifiez votre e-mail et votre mot de passe.'));
     } finally {
+      clearTimeout(slowTimer);
+      setSlowSubmit(false);
       setIsSubmitting(false);
     }
   }
@@ -105,8 +119,13 @@ export default function LoginPage() {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-on-primary transition hover:bg-primary-dark disabled:opacity-60"
             >
               {isSubmitting ? <Spinner /> : null}
-              Se connecter
+              {slowSubmit ? 'Démarrage du serveur…' : 'Se connecter'}
             </button>
+            {slowSubmit && (
+              <p className="text-center text-xs text-ink-soft">
+                Premier accès après une pause : cela peut prendre jusqu'à une minute. Ne fermez pas la page.
+              </p>
+            )}
           </form>
 
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-muted">

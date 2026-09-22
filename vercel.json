@@ -3,5 +3,15 @@
     { "source": "/api/:path*", "destination": "https://sigs-backend-06tv.onrender.com/api/:path*" },
     { "source": "/sanctum/:path*", "destination": "https://sigs-backend-06tv.onrender.com/sanctum/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/((?!assets/|api/|sanctum/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
   ]
 }

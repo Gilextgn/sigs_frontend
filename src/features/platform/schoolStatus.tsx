@@ -64,4 +64,9 @@ export const EVENT_LABELS: Record<string, string> = {
   reactivated: 'Réactivé',
   due_date_changed: 'Échéance modifiée',
   password_reset: 'Mot de passe administrateur réinitialisé',
+  renamed: 'Renommé',
+  admin_updated: 'Administrateur modifié',
+  payment_recorded: 'Paiement encaissé',
+  payment_deleted: 'Paiement supprimé',
+  reminder_sent: 'Relance envoyée',
 };

@@ -1,20 +1,18 @@
-import { Loader } from '@/shared/components/Loader';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { SessionLoader } from './SessionLoader';
 
 export function RequireAuth() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, serverUnreachable } = useAuth();
+  const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-paper">
-        <Loader />
-      </div>
-    );
+  if (isLoading || serverUnreachable) {
+    return <SessionLoader />;
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // On retient la page demandée : après connexion, l'utilisateur y revient.
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
   return <Outlet />;
