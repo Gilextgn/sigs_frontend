@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Check, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, Check, RefreshCcw } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Spinner } from '@/shared/components/Loader';
 import { StudentSearchSelect } from '@/features/students/StudentSearchSelect';
-import { useStudent, type StudentRow } from '@/features/students/useStudents';
+import { useStudent, useStudentBalance, type StudentRow } from '@/features/students/useStudents';
 import { useTranches } from '@/features/tranches/useTranches';
 import { useFeeTypes } from '@/features/fees/useFeeTypes';
 import { useSchoolSettings } from '@/features/settings/useSettings';
@@ -43,6 +43,10 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
   const { data: tranches, isLoading: tranchesLoading } = useTranches(classId ?? '');
   const { data: feeTypes } = useFeeTypes();
   const { data: studentPayments, isLoading: paymentsLoading } = useStudentPayments(studentId);
+  // Reste dû que les tranches de la classe ne portent pas : invisible dans les
+  // lignes ci-dessous, donc à signaler pour ne pas laisser croire à un solde nul.
+  const { data: balance } = useStudentBalance(studentId);
+  const unlisted = balance?.unlisted_amount ?? 0;
   const createPayment = useCreatePayment();
   const { data: settings } = useSchoolSettings();
 
@@ -81,7 +85,9 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
     setPrefilledFor(studentId);
   }, [linesReady, lines, studentId, prefilledFor]);
 
-  const outstanding = lines.reduce((sum, line) => sum + line.remaining, 0);
+  // Reste dû annoncé = ce qui est encaissable ici + la scolarité qu'aucune
+  // tranche ne porte (affichée en garde-fou, mais pas encaissable).
+  const outstanding = lines.reduce((sum, line) => sum + line.remaining, 0) + unlisted;
   const total = Object.values(selectedAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
   const remainingAfter = lines
     .filter((line) => line.key in selectedAmounts)
@@ -201,6 +207,17 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
         {studentId && !linesReady && (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink-soft">
             <Spinner className="text-primary" /> Calcul du reste à payer…
+          </div>
+        )}
+
+        {studentId && linesReady && unlisted > 0 && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-gold/30 bg-gold-soft px-3 py-2.5 text-sm text-gold">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <strong className="font-semibold">{formatAmount(unlisted)}</strong> de scolarité ne sont portés par aucune tranche de cette classe : ce montant
+              reste dû mais ne peut pas être encaissé ici. Complétez les tranches de la classe (Configuration › Tranches) pour qu'elles couvrent toute la
+              scolarité.
+            </span>
           </div>
         )}
 

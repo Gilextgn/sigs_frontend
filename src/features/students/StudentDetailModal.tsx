@@ -1,4 +1,4 @@
-import { Download, GraduationCap, HandCoins, Phone, Receipt, User } from 'lucide-react';
+import { AlertTriangle, Download, GraduationCap, HandCoins, Phone, Receipt, User } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Loader } from '@/shared/components/Loader';
 import { StatusBadge } from '@/shared/components/StatusBadge';
@@ -50,7 +50,11 @@ export function StudentDetailModal({
   const { data: payments } = useStudentPayments(hasPermission('payments.view') ? studentId : null);
   const { data: settings } = useSchoolSettings();
 
-  const remaining = (balance?.unpaid_items ?? []).reduce((sum, item) => sum + item.remaining, 0);
+  // Les lignes (tranches + frais) ne couvrent pas forcément toute la scolarité :
+  // on ajoute la part qu'aucune tranche ne porte, sinon la fiche annonce un
+  // solde nul alors que la famille doit encore.
+  const unlisted = balance?.unlisted_amount ?? 0;
+  const remaining = (balance?.unpaid_items ?? []).reduce((sum, item) => sum + item.remaining, 0) + unlisted;
   const paidRatio = balance && balance.theoretical_amount > 0 ? Math.min(balance.paid_amount / balance.theoretical_amount, 1) : 0;
   const history = payments?.data ?? [];
 
@@ -122,7 +126,17 @@ export function StudentDetailModal({
                 ))}
               </ul>
             )}
-            {balance && balance.unpaid_items.length === 0 && (
+            {balance && unlisted > 0 && (
+              <p className="mt-3 flex items-start gap-2 rounded-lg border border-gold/30 bg-gold-soft px-3 py-2 text-xs text-gold">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <strong className="font-semibold">{formatAmount(unlisted)}</strong> de scolarité ne sont rattachés à aucune tranche : impossible de les
+                  encaisser tant que les tranches de la classe ne couvrent pas toute la scolarité
+                  {hasPermission('settings.manage') ? ' (Configuration › Tranches).' : '.'}
+                </span>
+              </p>
+            )}
+            {balance && balance.unpaid_items.length === 0 && unlisted === 0 && remaining === 0 && (
               <p className="mt-3 text-sm font-medium text-success">Tout est réglé pour la classe actuelle.</p>
             )}
           </div>

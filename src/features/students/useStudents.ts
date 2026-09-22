@@ -102,6 +102,8 @@ export interface StudentBalance {
   outstanding_amount: number;
   /** Lignes non soldées, tranches et frais obligatoires. */
   unpaid_items: UnpaidItemRow[];
+  /** Reste dû qu'aucune tranche ne porte : non encaissable tant que les tranches de la classe ne le couvrent pas. */
+  unlisted_amount: number;
 }
 
 export function useStudent(id: number | null) {
