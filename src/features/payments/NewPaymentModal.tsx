@@ -215,7 +215,7 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               <strong className="font-semibold">{formatAmount(unlisted)}</strong> de scolarité ne sont portés par aucune tranche de cette classe : ce montant
-              reste dû mais ne peut pas être encaissé ici. Complétez les tranches de la classe (Configuration › Tranches) pour qu'elles couvrent toute la
+              reste dû mais ne peut pas être encaissé ici. Complétez les tranches de la classe (École › Tranches) pour qu'elles couvrent toute la
               scolarité.
             </span>
           </div>

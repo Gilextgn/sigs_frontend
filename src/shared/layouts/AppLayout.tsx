@@ -13,6 +13,9 @@ import { PaymentDeskProvider } from '@/features/payments/PaymentDesk';
 
 const COLLAPSE_STORAGE_KEY = 'schoolflow:sidebar-collapsed';
 
+/** Numéro SIGS joint depuis la bannière d'abonnement échu. */
+const SUPPORT_WHATSAPP = '2290191489743';
+
 interface AppLayoutProps {
   // Fourni quand AppLayout est utilisé hors du routeur imbriqué (ex. HomeRoute) ;
   // sinon retombe sur l'<Outlet /> classique pour les routes enfants.
@@ -68,15 +71,21 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
           )}
           {/* Échéance d'abonnement dépassée : réservé à ceux qui peuvent agir dessus. */}
           {user?.school?.status === 'overdue' && hasPermission('settings.manage') && (
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-b border-gold/30 bg-gold-soft px-4 py-2 text-center text-xs font-medium text-gold">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-danger px-4 py-2.5 text-center text-sm font-semibold text-on-danger">
+              <AlertTriangle className="h-4 w-4 shrink-0 animate-[pulse_2s_ease-in-out_infinite]" />
               <span>
-                L'échéance de votre abonnement est dépassée
-                {user.school.subscription_due_at ? ` (${formatDate(user.school.subscription_due_at)})` : ''}.
-                {user.school.blocked_from
-                  ? ` Sans règlement, l'accès sera suspendu le ${formatDate(user.school.blocked_from)}.`
-                  : ' Pensez à régulariser votre situation.'}
+                Abonnement échu
+                {user.school.subscription_due_at ? ` depuis le ${formatDate(user.school.subscription_due_at)}` : ''}
+                {user.school.blocked_from ? ` · accès suspendu le ${formatDate(user.school.blocked_from)}` : ''}
               </span>
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`Bonjour, je souhaite régulariser l'abonnement SIGS de « ${user.school.name} ».`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold text-on-danger no-underline transition hover:bg-white/30"
+              >
+                Régulariser
+              </a>
             </div>
           )}
           {/* Seule cette zone défile — le footer ci-dessous reste fixe en bas d'écran. */}

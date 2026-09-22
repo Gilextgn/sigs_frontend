@@ -53,7 +53,10 @@ export function useUploadLetterhead() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('letterhead', file);
-      return (await apiClient.post<SchoolSettings>('/settings/letterhead', formData)).data;
+      // Sans ce Content-Type vidé, l'en-tête JSON par défaut du client
+      // l'emporte : le fichier partait sans délimiteur multipart et le
+      // serveur ne recevait aucune image.
+      return (await apiClient.post<SchoolSettings>('/settings/letterhead', formData, { headers: { 'Content-Type': undefined } })).data;
     },
     onSuccess: (settings) => queryClient.setQueryData(['settings'], settings),
   });

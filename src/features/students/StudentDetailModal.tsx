@@ -132,7 +132,7 @@ export function StudentDetailModal({
                 <span>
                   <strong className="font-semibold">{formatAmount(unlisted)}</strong> de scolarité ne sont rattachés à aucune tranche : impossible de les
                   encaisser tant que les tranches de la classe ne couvrent pas toute la scolarité
-                  {hasPermission('settings.manage') ? ' (Configuration › Tranches).' : '.'}
+                  {hasPermission('settings.manage') ? ' (École › Tranches).' : '.'}
                 </span>
               </p>
             )}

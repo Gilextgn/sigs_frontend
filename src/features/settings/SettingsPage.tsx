@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarPlus, CheckCircle2, ImagePlus, Lock, Settings as SettingsIcon, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
 import {
   useAcademicYears,
   useActivateAcademicYear,
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const deleteLetterhead = useDeleteLetterhead();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [letterheadError, setLetterheadError] = useState<string | null>(null);
 
   const { data: academicYears } = useAcademicYears();
   const createYear = useCreateAcademicYear();
@@ -29,8 +31,25 @@ export default function SettingsPage() {
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) await uploadLetterhead.mutateAsync(file);
     e.target.value = '';
+    setLetterheadError(null);
+    if (!file) return;
+
+    // Vérifié ici pour répondre tout de suite, et revérifié par le serveur.
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setLetterheadError('Formats acceptés : JPG ou PNG.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLetterheadError(`L'image pèse ${(file.size / 1024 / 1024).toFixed(1)} Mo : 2 Mo maximum.`);
+      return;
+    }
+
+    try {
+      await uploadLetterhead.mutateAsync(file);
+    } catch (requestError) {
+      setLetterheadError(getApiErrorMessage(requestError, "Le téléversement a échoué."));
+    }
   }
 
   async function handleCreateYear(e: FormEvent) {
@@ -92,6 +111,7 @@ export default function SettingsPage() {
               </button>
             )}
             <p className="text-[11px] text-ink-soft">PNG ou JPG, 2 Mo maximum.</p>
+            {letterheadError && <p className="text-xs font-medium text-danger">{letterheadError}</p>}
           </div>
         </div>
       </article>

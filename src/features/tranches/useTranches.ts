@@ -33,6 +33,16 @@ export function useCreateTranche() {
   });
 }
 
+/** Plusieurs tranches d'un coup : tout est créé, ou rien. */
+export function useCreateTranches() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { class_id: number; tranches: { label: string; amount: number; due_date?: string }[] }) =>
+      (await apiClient.post<TrancheRow[]>('/tranches/bulk', payload)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tranches'] }),
+  });
+}
+
 export function useUpdateTranche() {
   const queryClient = useQueryClient();
   return useMutation({
