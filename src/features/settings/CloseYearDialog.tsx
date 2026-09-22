@@ -3,15 +3,24 @@ import { AlertTriangle } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { useClosingPreview, useCloseAcademicYear, type AcademicYearRow } from './useSettings';
 import { currency } from '@/shared/lib/format';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
+import { useState } from 'react';
 
 
 export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onClose: () => void }) {
   const { data: debtors, isLoading } = useClosingPreview(year.id);
   const closeYear = useCloseAcademicYear();
 
+  const [error, setError] = useState<string | null>(null);
+
   async function handleClose() {
-    await closeYear.mutateAsync(year.id);
-    onClose();
+    setError(null);
+    try {
+      await closeYear.mutateAsync(year.id);
+      onClose();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, "Impossible de clôturer cette année."));
+    }
   }
 
   const debtorCount = debtors?.length ?? 0;
@@ -50,6 +59,8 @@ export function CloseYearDialog({ year, onClose }: { year: AcademicYearRow; onCl
           </div>
         </>
       )}
+
+      {error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
       <div className="mt-5 flex justify-end gap-2">
         <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">

@@ -16,6 +16,8 @@ export interface AcademicYearRow {
   date_start: string | null;
   date_end: string | null;
   closed_at: string | null;
+  /** Garde-fou : pas de clôture avant cette date (fin d'année − 60 j). */
+  closable_from: string | null;
 }
 
 

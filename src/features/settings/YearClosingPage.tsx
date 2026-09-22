@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Lock, LockOpen } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Lock, LockOpen } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaymentDesk } from '@/features/payments/PaymentDesk';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Loader } from '@/shared/components/Loader';
-import { formatAmount, formatDate, formatNumber } from '@/shared/lib/format';
+import { daysFromToday, formatAmount, formatDate, formatNumber } from '@/shared/lib/format';
 import { CloseYearDialog } from './CloseYearDialog';
 import { useAcademicYears, useClosingPreview, useReopenAcademicYear, type AcademicYearRow } from './useSettings';
 
@@ -130,6 +130,7 @@ function YearPanel({
   const { data: debtors, isLoading } = useClosingPreview(year.id);
   const { openPayment, openStudent, canPay } = usePaymentDesk();
   const total = (debtors ?? []).reduce((sum, d) => sum + d.outstanding_amount, 0);
+  const tooEarly = !year.closed_at && !!year.closable_from && daysFromToday(year.closable_from) > 0;
 
   return (
     <section className="min-w-0 rounded-2xl border border-border bg-surface">
@@ -160,6 +161,15 @@ function YearPanel({
             >
               <LockOpen className="h-4 w-4" /> Rouvrir
             </button>
+          ) : tooEarly ? (
+            <button
+              type="button"
+              disabled
+              title={`Clôture possible à partir du ${formatDate(year.closable_from!, 'long')}`}
+              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-ink-muted"
+            >
+              <Lock className="h-4 w-4" /> Clôture verrouillée
+            </button>
           ) : (
             <button
               type="button"
@@ -170,6 +180,17 @@ function YearPanel({
             </button>
           ))}
       </div>
+
+      {tooEarly && (
+        <p className="flex items-start gap-2 border-b border-border bg-gold-soft px-5 py-3 text-sm text-gold">
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            L'année {year.code} est encore en cours : la clôture sera possible à partir du{' '}
+            <strong>{formatDate(year.closable_from!, 'long')}</strong>. Clôturer maintenant bloquerait la réinscription de tous les élèves qui paient
+            encore par tranches.
+          </span>
+        </p>
+      )}
 
       {!isLoading && debtors && debtors.length === 0 && (
         <p className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-success">
