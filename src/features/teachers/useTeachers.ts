@@ -6,6 +6,8 @@ export interface TeacherRow {
   full_name: string;
   phone: string | null;
   subject: string | null;
+  /** hourly : payé aux heures faites (présences) ; monthly : salaire fixe. */
+  pay_mode: 'hourly' | 'monthly';
   monthly_salary: string | null;
   status: 'active' | 'inactive';
 }
@@ -14,6 +16,7 @@ export interface TeacherPayload {
   full_name: string;
   phone?: string;
   subject?: string;
+  pay_mode?: 'hourly' | 'monthly';
   monthly_salary?: number;
   status?: 'active' | 'inactive';
 }

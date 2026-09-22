@@ -14,9 +14,11 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
     full_name: editing?.full_name ?? '',
     phone: editing?.phone ?? '',
     subject: editing?.subject ?? '',
+    pay_mode: editing?.pay_mode ?? 'hourly',
     monthly_salary: editing?.monthly_salary ?? '',
     status: editing?.status ?? 'active',
   });
+  const paidHourly = form.pay_mode === 'hourly';
   const [error, setError] = useState<string | null>(null);
   const isSaving = createTeacher.isPending || updateTeacher.isPending;
 
@@ -28,7 +30,9 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
       full_name: form.full_name,
       phone: form.phone || undefined,
       subject: form.subject || undefined,
-      monthly_salary: form.monthly_salary ? Number(form.monthly_salary) : undefined,
+      pay_mode: form.pay_mode as 'hourly' | 'monthly',
+      // À l'heure, la paie sort des présences : aucun salaire fixe à saisir.
+      monthly_salary: paidHourly ? undefined : Number(form.monthly_salary || 0),
       status: form.status as 'active' | 'inactive',
     };
 
@@ -82,17 +86,44 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
           </Field>
         </div>
 
+        <Field label="Rémunération">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['hourly', 'À l’heure', 'Calculée chaque mois d’après les heures faites (présences).'],
+                ['monthly', 'Salaire fixe', 'Montant mensuel identique, saisi ci-dessous.'],
+              ] as ['hourly' | 'monthly', string, string][]
+            ).map(([mode, label, hint]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, pay_mode: mode }))}
+                aria-pressed={form.pay_mode === mode}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                  form.pay_mode === mode ? 'border-primary bg-primary-soft/50 ring-2 ring-primary/15' : 'border-border hover:border-primary/40'
+                }`}
+              >
+                <span className="block text-sm font-medium text-ink">{label}</span>
+                <span className="block text-xs text-ink-soft">{hint}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Salaire mensuel (XOF)">
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.monthly_salary}
-              onChange={(e) => setForm((f) => ({ ...f, monthly_salary: e.target.value }))}
-              className={inputClass}
-            />
-          </Field>
+          {!paidHourly && (
+            <Field label="Salaire mensuel (XOF)">
+              <input
+                required
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.monthly_salary}
+                onChange={(e) => setForm((f) => ({ ...f, monthly_salary: e.target.value }))}
+                className={inputClass}
+              />
+            </Field>
+          )}
           <Field label="Statut">
             <select
               value={form.status}

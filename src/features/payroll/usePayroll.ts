@@ -12,7 +12,15 @@ export interface PayrollEntryRow {
   teacher: { id: number; full_name: string; subject: string | null } | null;
 }
 
-export interface PayrollEstimate { worked_minutes: number; worked_hours: number; amount: number; }
+export interface PayrollEstimate {
+  /** monthly : salaire fixe ; hourly : heures faites × tarif de chaque classe. */
+  pay_mode: 'hourly' | 'monthly';
+  worked_minutes: number;
+  worked_hours: number;
+  /** Ce que donneraient les heures faites, même pour un salaire fixe. */
+  hourly_amount: number;
+  amount: number;
+}
 
 export interface PayrollDetailSession {
   id: number;

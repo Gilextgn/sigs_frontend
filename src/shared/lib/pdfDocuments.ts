@@ -355,3 +355,55 @@ export async function downloadReminderListPdf(rows: ReminderRowData[], title: st
 
   doc.save('relances-rentree.pdf');
 }
+
+export interface TimetableCellData {
+  subject: string;
+  /** Classe ou enseignant, selon ce que l'on regarde. */
+  detail: string;
+  room: string | null;
+}
+
+export interface TimetableData {
+  slots: string[];
+  days: { index: number; label: string }[];
+  cells: Record<string, TimetableCellData[]>;
+}
+
+/**
+ * Emploi du temps en grille : une ligne par plage horaire, une colonne par
+ * jour. Remplace l'impression de l'écran, qui embarquait les formulaires.
+ */
+export async function downloadTimetablePdf(timetable: TimetableData, title: string, subtitle: string, settings: LetterheadInfo | null) {
+  const doc = new jsPDF({ orientation: 'landscape' });
+  let y = await addLetterhead(doc, settings);
+
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text(title, 15, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...INK_SOFT);
+  doc.text(`${subtitle} · édité le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date())}`, 15, y);
+
+  autoTable(doc, {
+    startY: y + 5,
+    head: [['Horaire', ...timetable.days.map((day) => day.label)]],
+    body: timetable.slots.map((slot) => [
+      slot,
+      ...timetable.days.map((day) =>
+        (timetable.cells[`${slot}|${day.index}`] ?? [])
+          .map((cell) => [cell.subject, cell.detail, cell.room ? `Salle ${cell.room}` : null].filter(Boolean).join('\n'))
+          .join('\n— \n'),
+      ),
+    ]),
+    headStyles: { fillColor: EMERALD, halign: 'center' },
+    styles: { fontSize: 9, valign: 'middle', cellPadding: 2.5 },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 28, halign: 'center' } },
+    bodyStyles: { halign: 'center' },
+    alternateRowStyles: { fillColor: [248, 250, 251] },
+  });
+
+  doc.save('emploi-du-temps.pdf');
+}

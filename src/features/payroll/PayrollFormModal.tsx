@@ -82,7 +82,12 @@ export function PayrollFormModal({ onClose }: { onClose: () => void }) {
             <input type="number" min={0} step="0.01" value={form.deduction_amount} onChange={(e) => setForm((f) => ({ ...f, deduction_amount: e.target.value }))} className={inputClass} />
           </Field>
         </div>
-        <p className="text-xs text-ink-soft">Base calculée : {estimate.data?.amount ?? 0} XOF selon les séances complétées et le tarif de chaque classe.</p>
+        <p className="text-xs text-ink-soft">
+          Base calculée : {estimate.data?.amount ?? 0} XOF —{' '}
+          {estimate.data?.pay_mode === 'monthly'
+            ? 'salaire mensuel fixe de cet enseignant (les heures ci-dessus sont indicatives).'
+            : 'selon les séances complétées et le tarif horaire de chaque classe.'}
+        </p>
 
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">

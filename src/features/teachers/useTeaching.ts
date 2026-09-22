@@ -45,8 +45,14 @@ export function useSubjects(search?: string) {
 export function useAssignments() {
   return useQuery({ queryKey: ['teacher-assignments'], queryFn: async () => (await apiClient.get<AssignmentRow[]>('/teacher-assignments')).data });
 }
-export function useSchedules(classId?: number | '') {
-  return useQuery({ queryKey: ['schedules', classId], queryFn: async () => (await apiClient.get<ScheduleRow[]>('/schedules', { params: { class_id: classId || undefined } })).data });
+/** Emploi du temps filtré par classe, par enseignant, ou les deux. */
+export function useSchedules(filters: { classId?: number | ''; teacherId?: number | '' } = {}) {
+  const { classId, teacherId } = filters;
+  return useQuery({
+    queryKey: ['schedules', classId ?? '', teacherId ?? ''],
+    queryFn: async () =>
+      (await apiClient.get<ScheduleRow[]>('/schedules', { params: { class_id: classId || undefined, teacher_id: teacherId || undefined } })).data,
+  });
 }
 export function useCreateSubject() {
   const queryClient = useQueryClient();
