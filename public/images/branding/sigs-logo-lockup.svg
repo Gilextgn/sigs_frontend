@@ -1,0 +1,29 @@
+<!--
+  Logo complet : monogramme + mot « SIGS », pour un fond clair.
+  Le mot est du texte vivant en Space Grotesk (la police du produit) : il ne
+  s'affiche correctement que là où cette police est installée. Pour une vidéo,
+  une impression ou un envoi à un tiers, composer le mot avec l'outil qui
+  dispose de la police, ou vectoriser le texte avant export.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="240" viewBox="0 0 176 48" role="img" aria-label="SIGS">
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="#0E1117" />
+  <g transform="translate(24 24) scale(0.9) translate(-24 -26)">
+  <path
+    d="M32 14 H20 A6 6 0 0 0 20 26 H28 A6 6 0 0 1 28 38 H16"
+    fill="none"
+    stroke="#2FD98A"
+    stroke-width="5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  </g>
+  <text
+    x="60"
+    y="33"
+    fill="#10151C"
+    font-family="Space Grotesk, system-ui, sans-serif"
+    font-size="26"
+    font-weight="700"
+    letter-spacing="0.5"
+  >SIGS</text>
+</svg>
