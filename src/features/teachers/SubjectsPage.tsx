@@ -9,7 +9,9 @@ import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
-import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectRow } from './useTeaching';
+import { useCreateSubject, useDeleteSubject, useUpdateSubject, useSubjects, type SubjectLevel, type SubjectRow } from './useTeaching';
+
+export const SUBJECT_LEVELS: Record<SubjectLevel, string> = { both: 'Primaire et collège', primary: 'Primaire', secondary: 'Collège' };
 
 export default function SubjectsPage() {
   const { hasPermission } = useAuth();
@@ -21,18 +23,23 @@ export default function SubjectsPage() {
   });
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
+  const [level, setLevel] = useState<SubjectLevel>('both');
+  const [levelFilter, setLevelFilter] = useState<SubjectLevel | ''>('');
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<SubjectRow | null>(null);
   const { data: subjects, isLoading } = useSubjects(search);
   const createSubject = useCreateSubject();
   const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
-  const { pageRows, ...pagination } = usePaginatedRows(subjects);
+  // Filtre « Primaire » : ses matières et celles communes aux deux niveaux.
+  const visible = (subjects ?? []).filter((subject) => !levelFilter || subject.level === levelFilter || (levelFilter !== 'both' && subject.level === 'both'));
+  const { pageRows, ...pagination } = usePaginatedRows(visible);
   const isSaving = createSubject.isPending || updateSubject.isPending;
 
   function openCreate() {
     setCode('');
     setLabel('');
+    setLevel('both');
     setError(null);
     setModalState({ open: true, editing: null });
   }
@@ -40,6 +47,7 @@ export default function SubjectsPage() {
   function openEdit(subject: SubjectRow) {
     setCode(subject.code);
     setLabel(subject.label);
+    setLevel(subject.level ?? 'both');
     setError(null);
     setModalState({ open: true, editing: subject });
   }
@@ -48,7 +56,7 @@ export default function SubjectsPage() {
     event.preventDefault();
     setError(null);
     try {
-      const payload = { code: code.trim().toUpperCase(), label: label.trim() };
+      const payload = { code: code.trim().toUpperCase(), label: label.trim(), level };
       if (modalState.editing) {
         await updateSubject.mutateAsync({ id: modalState.editing.id, payload });
       } else {
@@ -83,17 +91,24 @@ export default function SubjectsPage() {
         )}
       </div>
 
-      <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une matière..." className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+      <div className="flex flex-wrap gap-2">
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une matière..." className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+        <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as SubjectLevel | '')} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink">
+          <option value="">Tous les niveaux</option>
+          <option value="primary">Primaire</option>
+          <option value="secondary">Collège</option>
+        </select>
+      </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-paper text-xs uppercase text-ink-soft">
-            <tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Matière</th><th className="px-4 py-3">Statut</th><th className="px-4 py-3" /></tr>
+            <tr><th className="px-4 py-3">Code</th><th className="px-4 py-3">Matière</th><th className="px-4 py-3">Niveau</th><th className="px-4 py-3" /></tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && <SkeletonTableRows columns={4} />}
-            {!isLoading && (subjects ?? []).length === 0 && (
+            {!isLoading && visible.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-14 text-center">
                   <BookOpen className="mx-auto h-8 w-8 text-ink-soft" />
@@ -105,7 +120,7 @@ export default function SubjectsPage() {
               <tr key={subject.id} className="hover:bg-paper">
                 <td className="font-tabular px-4 py-3 text-ink-soft">{subject.code}</td>
                 <td className="px-4 py-3 font-medium text-ink">{subject.label}</td>
-                <td className="px-4 py-3"><StatusBadge tone="success" label="Active" /></td>
+                <td className="px-4 py-3"><StatusBadge tone={subject.level === 'primary' ? 'gold' : subject.level === 'secondary' ? 'primary' : 'neutral'} label={SUBJECT_LEVELS[subject.level ?? 'both']} /></td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
                     {canManage && (
@@ -137,6 +152,15 @@ export default function SubjectsPage() {
             </Field>
             <Field label="Libellé">
               <input required value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Mathématiques" className={inputClass} />
+            </Field>
+            <Field label="Niveau">
+              <select value={level} onChange={(event) => setLevel(event.target.value as SubjectLevel)} className={inputClass}>
+                {(Object.keys(SUBJECT_LEVELS) as SubjectLevel[]).map((key) => (
+                  <option key={key} value={key}>
+                    {SUBJECT_LEVELS[key]}
+                  </option>
+                ))}
+              </select>
             </Field>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setModalState({ open: false, editing: null })} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink">Annuler</button>

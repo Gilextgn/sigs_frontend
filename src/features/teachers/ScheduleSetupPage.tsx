@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
@@ -33,6 +33,8 @@ export default function ScheduleSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [listClassId, setListClassId] = useState<number | ''>('');
+  // Créneau : la classe, puis un de ses cours (matière + enseignant, fixés à l'affectation).
+  const [slotClassId, setSlotClassId] = useState<number | ''>('');
   const [toDelete, setToDelete] = useState<ScheduleRow | null>(null);
   const [toEdit, setToEdit] = useState<ScheduleRow | null>(null);
 
@@ -47,34 +49,39 @@ export default function ScheduleSetupPage() {
   const { pageRows, ...pagination } = usePaginatedRows(schedules);
 
   const teacherRows = teachers?.data ?? [];
-  const isPrimary = teacherRows.find((teacher) => teacher.id === teacherId)?.level === 'primary';
-  const allSubjectIds = (subjects ?? []).map((subject) => subject.id);
+  const teacherLevel = teacherRows.find((teacher) => teacher.id === teacherId)?.level;
+  const isPrimary = teacherLevel === 'primary';
+  // Seules les matières du niveau de l'enseignant (et celles communes aux deux).
+  const levelSubjects = (subjects ?? []).filter((subject) => !teacherLevel || subject.level === 'both' || subject.level === teacherLevel);
+  const allSubjectIds = levelSubjects.map((subject) => subject.id);
+  const allKey = allSubjectIds.join(',');
+
+  // Primaire : toutes ses matières cochées d'office, il n'y a rien à choisir.
+  useEffect(() => {
+    setSubjectIds(isPrimary && allKey ? allKey.split(',').map(Number) : []);
+    setSubjectIdState('');
+  }, [teacherId, isPrimary, allKey]);
   const classOptions = (classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }));
-  const selectedAssignment = assignments?.find((assignment) => assignment.id === assignmentId);
-  const filteredAssignments = useMemo(
-    () =>
-      (assignments ?? []).filter(
-        (assignment) =>
-          (!classId || assignment.class_id === classId) && (!subjectId || assignment.subject_id === subjectId) && (!teacherId || assignment.teacher_id === teacherId),
-      ),
-    [assignments, classId, subjectId, teacherId],
-  );
+  const classCourses = (assignments ?? []).filter((assignment) => assignment.class_id === slotClassId);
   const conflicts = (schedules ?? []).filter((schedule) => schedule.conflict).length;
 
   async function addAssignment() {
     setError(null);
     setSuccess(null);
-    if (!teacherId || !classId || (isPrimary ? subjectIds.length === 0 : !subjectId)) {
-      return setError(isPrimary ? 'Sélectionnez l’enseignant, la classe et au moins une matière.' : 'Sélectionnez l’enseignant, la classe et la matière.');
+    if (!teacherId || !classId || (!isPrimary && !subjectId)) {
+      return setError(isPrimary ? 'Sélectionnez l’enseignant et la classe.' : 'Sélectionnez l’enseignant, la classe et la matière.');
     }
     try {
       // Le tarif est celui de la fiche de l'enseignant.
       if (isPrimary) {
-        await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_ids: subjectIds });
-        setSuccess(`Affectation enregistrée pour ${subjectIds.length} matière(s) : ajoutez maintenant ses créneaux.`);
+        // Aucune case cochée : le serveur prend toutes les matières du primaire.
+        await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_ids: subjectIds.length ? subjectIds : undefined });
+        setSlotClassId(Number(classId));
+        setSuccess(`Affectation enregistrée pour ${subjectIds.length || 'toutes les'} matière(s) : ajoutez maintenant ses créneaux.`);
         return;
       }
       const assignment = await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_id: Number(subjectId) });
+      setSlotClassId(Number(classId));
       setAssignmentIdState(assignment.id);
       setSuccess('Affectation enregistrée : vous pouvez maintenant lui ajouter des créneaux.');
     } catch (requestError) {
@@ -85,10 +92,11 @@ export default function ScheduleSetupPage() {
   async function addSchedule() {
     setError(null);
     setSuccess(null);
-    if (!classId || !subjectId || !assignmentId) return setError('Sélectionnez une classe, une matière et une affectation.');
+    const course = classCourses.find((assignment) => assignment.id === assignmentId);
+    if (!slotClassId || !course) return setError('Sélectionnez la classe et le cours.');
     try {
-      await createSchedule.mutateAsync({ class_id: Number(classId), subject_id: Number(subjectId), teacher_assignment_id: Number(assignmentId), day_of_week: day, starts_at: startsAt, ends_at: endsAt, room: room || undefined });
-      setListClassId(Number(classId));
+      await createSchedule.mutateAsync({ class_id: Number(slotClassId), subject_id: course.subject_id, teacher_assignment_id: course.id, day_of_week: day, starts_at: startsAt, ends_at: endsAt, room: room || undefined });
+      setListClassId(Number(slotClassId));
       setSuccess(`Créneau ajouté : ${DAYS[day - 1]} ${startsAt} - ${endsAt}.`);
     } catch (requestError) {
       // Le serveur dit précisément ce qui coince (classe occupée, enseignant déjà en cours ailleurs).
@@ -125,7 +133,7 @@ export default function ScheduleSetupPage() {
             <SearchableSelect value={teacherId} onChange={(value) => setTeacherIdState(Number(value))} placeholder="Enseignant" options={teacherRows.map((teacher) => ({ value: teacher.id, label: teacher.full_name }))} />
             <SearchableSelect value={classId} onChange={(value) => setClassIdState(Number(value))} placeholder="Classe" options={classOptions} />
             {!isPrimary && (
-              <SearchableSelect value={subjectId} onChange={(value) => setSubjectIdState(Number(value))} placeholder="Matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
+              <SearchableSelect value={subjectId} onChange={(value) => setSubjectIdState(Number(value))} placeholder="Matière" options={levelSubjects.map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
             )}
           </div>
           {isPrimary && (
@@ -141,7 +149,7 @@ export default function ScheduleSetupPage() {
                 </button>
               </div>
               <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
-                {(subjects ?? []).map((subject) => (
+                {levelSubjects.map((subject) => (
                   <label key={subject.id} className="flex items-center gap-2 text-sm text-ink">
                     <input
                       type="checkbox"
@@ -152,7 +160,7 @@ export default function ScheduleSetupPage() {
                   </label>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-ink-soft">Enseignant du primaire : décochez les matières confiées à un autre (anglais, EPS…).</p>
+              <p className="mt-2 text-xs text-ink-soft">Toutes les matières du primaire sont cochées d’office : décochez seulement celles confiées à un autre (anglais, EPS…).</p>
             </div>
           )}
           <button type="button" onClick={addAssignment} disabled={createAssignment.isPending} className="mt-3 flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft disabled:opacity-50">
@@ -163,9 +171,25 @@ export default function ScheduleSetupPage() {
         <section className="rounded-xl border border-border bg-surface p-4">
           <h2 className="font-display text-base font-semibold text-ink">2. Créneau</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <SearchableSelect value={classId} onChange={(value) => setClassIdState(Number(value))} placeholder="Classe" options={classOptions} />
-            <SearchableSelect value={subjectId} onChange={(value) => setSubjectIdState(Number(value))} placeholder="Matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label }))} />
-            <SearchableSelect value={assignmentId} onChange={(value) => setAssignmentIdState(Number(value))} placeholder="Enseignant (affectation)" options={filteredAssignments.map((assignment) => ({ value: assignment.id, label: `${assignment.teacher?.full_name ?? 'Enseignant'} · ${assignment.hourly_rate} XOF/h` }))} />
+            <SearchableSelect
+              value={slotClassId}
+              onChange={(value) => {
+                setSlotClassId(Number(value));
+                setAssignmentIdState('');
+              }}
+              placeholder="Classe"
+              options={classOptions}
+            />
+            <div className="sm:col-span-2">
+              <SearchableSelect
+                value={assignmentId}
+                onChange={(value) => setAssignmentIdState(Number(value))}
+                placeholder={slotClassId ? 'Cours (matière — enseignant)' : 'Choisissez d’abord la classe'}
+                disabled={!slotClassId}
+                emptyLabel="Aucun cours affecté à cette classe : faites d’abord l’affectation."
+                options={classCourses.map((assignment) => ({ value: assignment.id, label: `${assignment.subject?.label ?? 'Matière'} — ${assignment.teacher?.full_name ?? 'Enseignant'}` }))}
+              />
+            </div>
             <select value={day} onChange={(e) => setDay(Number(e.target.value))} className={field}>
               {DAYS.slice(0, 6).map((label, index) => (
                 <option key={label} value={index + 1}>
@@ -182,7 +206,6 @@ export default function ScheduleSetupPage() {
               <Plus className="h-4 w-4" /> Ajouter au planning
             </button>
           </div>
-          {selectedAssignment && <p className="mt-2 text-xs text-ink-soft">Tarif appliqué : {selectedAssignment.hourly_rate} XOF par heure pour cette classe.</p>}
         </section>
       </div>
 

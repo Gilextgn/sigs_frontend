@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/shared/lib/apiClient';
 
-export interface SubjectRow { id: number; code: string; label: string; }
+/** primary : primaire ; secondary : collège ; both : les deux (Français, Mathématiques…). */
+export type SubjectLevel = 'primary' | 'secondary' | 'both';
+export interface SubjectRow { id: number; code: string; label: string; level: SubjectLevel }
 export interface AssignmentRow {
   id: number;
   teacher_id: number;
@@ -60,11 +62,11 @@ export function useSchedules(filters: { classId?: number | ''; teacherId?: numbe
 }
 export function useCreateSubject() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: async (payload: { code: string; label: string }) => (await apiClient.post('/subjects', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
+  return useMutation({ mutationFn: async (payload: { code: string; label: string; level?: SubjectLevel }) => (await apiClient.post('/subjects', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
 }
 export function useUpdateSubject() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: async ({ id, payload }: { id: number; payload: { code: string; label: string } }) => (await apiClient.put(`/subjects/${id}`, payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
+  return useMutation({ mutationFn: async ({ id, payload }: { id: number; payload: { code: string; label: string; level?: SubjectLevel } }) => (await apiClient.put(`/subjects/${id}`, payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subjects'] }) });
 }
 export function useDeleteSubject() {
   const queryClient = useQueryClient();
