@@ -33,7 +33,8 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
     const payload = {
       full_name: form.full_name,
       phone: form.phone || undefined,
-      subject: form.subject || undefined,
+      // Primaire : pas de matière principale, il enseigne toutes celles de sa classe.
+      subject: paidHourly ? form.subject || undefined : undefined,
       level: form.level as 'primary' | 'secondary',
       // À l'heure, la paie sort des présences : aucun salaire fixe à saisir.
       monthly_salary: paidHourly ? undefined : Number(form.monthly_salary || 0),
@@ -85,16 +86,23 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
               className={inputClass}
             />
           </Field>
-          <Field label="Matière">
-            <SearchableSelect
-              value={form.subject}
-              clearable
-              placeholder="Choisir une matière"
-              emptyLabel="Aucune matière — ajoutez-la dans le référentiel Matières"
-              onChange={(value) => setForm((f) => ({ ...f, subject: String(value) }))}
-              options={(subjects ?? []).map((subject) => ({ value: subject.label, label: subject.label, hint: subject.code }))}
-            />
-          </Field>
+          {/* Facultatif : les matières réellement enseignées se fixent à l'affectation. */}
+          {paidHourly ? (
+            <Field label="Matière principale (facultatif)">
+              <SearchableSelect
+                value={form.subject}
+                clearable
+                placeholder="Aucune"
+                emptyLabel="Aucune matière — ajoutez-la dans le référentiel Matières"
+                onChange={(value) => setForm((f) => ({ ...f, subject: String(value) }))}
+                options={(subjects ?? []).map((subject) => ({ value: subject.label, label: subject.label, hint: subject.code }))}
+              />
+            </Field>
+          ) : (
+            <Field label="Matières">
+              <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-ink-soft">Toutes celles de sa classe, cochées à l'affectation.</p>
+            </Field>
+          )}
         </div>
 
         <Field label="Niveau d'enseignement">
