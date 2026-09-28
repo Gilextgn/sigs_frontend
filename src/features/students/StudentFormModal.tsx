@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import axios from 'axios';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
@@ -11,6 +11,39 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'graduated', label: 'Diplômé' },
   { value: 'archived', label: 'Archivé' },
 ];
+
+interface ContactForm {
+  guardian_email: string;
+  guardian_whatsapp: string;
+}
+
+/** Canaux par lesquels le reçu part automatiquement au parent après chaque paiement. */
+function ReceiptContactFields<T extends ContactForm>({ form, setForm }: { form: T; setForm: Dispatch<SetStateAction<T>> }) {
+  return (
+    <div className="mt-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="WhatsApp (optionnel)">
+          <input
+            type="tel"
+            placeholder="01 91 00 00 00"
+            value={form.guardian_whatsapp}
+            onChange={(e) => setForm((f) => ({ ...f, guardian_whatsapp: e.target.value }))}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="E-mail (optionnel)">
+          <input
+            type="email"
+            value={form.guardian_email}
+            onChange={(e) => setForm((f) => ({ ...f, guardian_email: e.target.value }))}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+      <p className="mt-1.5 text-xs text-ink-soft">Le reçu de chaque paiement est envoyé au parent sur ces contacts.</p>
+    </div>
+  );
+}
 
 export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | null; onClose: () => void }) {
   const createStudent = useCreateStudent();
@@ -25,8 +58,10 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
     status: editing?.status ?? 'active',
     guardian_full_name: '',
     guardian_relationship: '',
-    guardian_phone: '',
+    guardian_phone: editing?.guardian?.phone ?? '',
     guardian_address: '',
+    guardian_email: editing?.guardian?.email ?? '',
+    guardian_whatsapp: editing?.guardian?.whatsapp ?? '',
   });
   const [error, setError] = useState<string | null>(null);
   const isSaving = createStudent.isPending || updateStudent.isPending;
@@ -51,6 +86,13 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
             birth_date: form.birth_date || null,
             gender: form.gender || null,
             status: form.status,
+            ...(editing.guardian && {
+              guardian: {
+                phone: form.guardian_phone,
+                email: form.guardian_email.trim() || null,
+                whatsapp: form.guardian_whatsapp.trim() || null,
+              },
+            }),
           },
         });
       } else {
@@ -65,6 +107,8 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
             relationship_label: form.guardian_relationship,
             phone: form.guardian_phone,
             address: form.guardian_address || undefined,
+            email: form.guardian_email.trim() || undefined,
+            whatsapp: form.guardian_whatsapp.trim() || undefined,
           },
         });
       }
@@ -162,6 +206,18 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
                 <input value={form.guardian_address} onChange={(e) => setForm((f) => ({ ...f, guardian_address: e.target.value }))} className={inputClass} />
               </Field>
             </div>
+            <ReceiptContactFields form={form} setForm={setForm} />
+          </div>
+        )}
+
+        {editing?.guardian && (
+          <div className="border-t border-border pt-4">
+            <p className="mb-1 text-sm font-semibold text-ink">Contacts du parent · {editing.guardian.full_name}</p>
+            <p className="mb-3 text-xs text-ink-soft">Partagés avec ses autres enfants inscrits.</p>
+            <Field label="Téléphone">
+              <input required value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: e.target.value }))} className={inputClass} />
+            </Field>
+            <ReceiptContactFields form={form} setForm={setForm} />
           </div>
         )}
 

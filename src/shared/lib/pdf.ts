@@ -26,6 +26,10 @@ export async function downloadReminderListPdf(...args: Parameters<typeof Documen
   return (await load()).downloadReminderListPdf(...args);
 }
 
+export async function downloadCashPointPdf(...args: Parameters<typeof Documents.downloadCashPointPdf>) {
+  return (await load()).downloadCashPointPdf(...args);
+}
+
 export async function downloadTimetablePdf(...args: Parameters<typeof Documents.downloadTimetablePdf>) {
   return (await load()).downloadTimetablePdf(...args);
 }

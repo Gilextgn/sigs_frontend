@@ -97,9 +97,12 @@ export default function FeesPage() {
             </div>
             <p className="font-tabular mt-2 text-lg font-semibold text-ink">
               {currency.format(Number(fee.amount))} XOF
+              {fee.billing_cycle === 'monthly' && (
+                <span className="ml-1 text-sm font-normal text-ink-soft">/ mois · {fee.months?.length ?? 10} mois</span>
+              )}
             </p>
             <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${fee.is_mandatory ? 'bg-danger-soft text-danger' : 'bg-paper text-ink-soft'}`}>
-              {fee.is_mandatory ? 'Obligatoire' : 'Optionnel'}
+              {fee.is_mandatory ? 'Toute la classe' : 'Sur inscription'}
             </span>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {fee.classes.length === 0 && <span className="text-xs text-ink-soft">Aucune classe affectée</span>}

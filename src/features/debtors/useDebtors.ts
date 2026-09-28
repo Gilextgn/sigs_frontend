@@ -10,6 +10,8 @@ export interface DebtorRow {
   theoretical_amount: number;
   paid_amount: number;
   outstanding_amount: number;
+  /** Frais échus non réglés (cantine, TD, tenue…), hors scolarité. */
+  fees_outstanding: number;
   unpaid_items: UnpaidItemRow[];
 }
 

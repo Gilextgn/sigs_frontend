@@ -1,21 +1,28 @@
 import { useState, type FormEvent } from 'react';
 import { Modal } from '@/shared/components/Modal';
 import { Field, inputClass } from '@/shared/components/Field';
-import { useCreateClass, useUpdateClass, useCycles, type SchoolClassRow } from './useClasses';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
+import { formatAmount } from '@/shared/lib/format';
+import { useClasses, useCreateClass, useUpdateClass, useCycles, type SchoolClassRow } from './useClasses';
 
 export function ClassFormModal({
   editing,
+  groupOf = null,
   onClose,
 }: {
   editing: SchoolClassRow | null;
+  /** Raccourci « Dédoubler » : nouvelle classe créée comme groupe de celle-ci. */
+  groupOf?: SchoolClassRow | null;
   onClose: () => void;
 }) {
   const { data: cycles } = useCycles();
+  const { data: classes = [] } = useClasses();
   const createClass = useCreateClass();
   const updateClass = useUpdateClass();
 
   const [form, setForm] = useState({
-    cycle_id: editing?.cycle?.id ?? '',
+    cycle_id: editing?.cycle?.id ?? groupOf?.cycle?.id ?? '',
+    parent_class_id: String(editing?.parent_class_id ?? groupOf?.id ?? ''),
     code: editing?.code ?? '',
     label: editing?.label ?? '',
     tuition_amount: editing?.tuition_amount ?? '',
@@ -24,16 +31,20 @@ export function ClassFormModal({
   const [error, setError] = useState<string | null>(null);
 
   const isSaving = createClass.isPending || updateClass.isPending;
+  // Classes pouvant accueillir un groupe : les classes principales, sauf elle-même.
+  const mainClasses = classes.filter((c) => !c.parent_class_id && c.id !== editing?.id);
+  const parent = classes.find((c) => c.id === Number(form.parent_class_id)) ?? null;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     const payload = {
-      cycle_id: Number(form.cycle_id),
+      cycle_id: Number(parent?.cycle?.id ?? form.cycle_id),
+      parent_class_id: parent ? parent.id : null,
       code: form.code,
       label: form.label,
-      tuition_amount: Number(form.tuition_amount),
+      tuition_amount: parent ? undefined : Number(form.tuition_amount),
       description: form.description || undefined,
     };
 
@@ -44,13 +55,13 @@ export function ClassFormModal({
         await createClass.mutateAsync(payload);
       }
       onClose();
-    } catch {
-      setError("Impossible d'enregistrer la classe. Vérifiez les champs (code déjà utilisé ?).");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Impossible d'enregistrer la classe. Vérifiez les champs (code déjà utilisé ?)."));
     }
   }
 
   return (
-    <Modal title={editing ? 'Modifier la classe' : 'Nouvelle classe'} onClose={onClose}>
+    <Modal title={editing ? 'Modifier la classe' : groupOf ? `Dédoubler ${groupOf.label}` : 'Nouvelle classe'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
@@ -58,6 +69,28 @@ export function ClassFormModal({
           </div>
         )}
 
+        <Field label="Classe dédoublée ? (optionnel)">
+          <select
+            value={form.parent_class_id}
+            onChange={(e) => setForm((f) => ({ ...f, parent_class_id: e.target.value }))}
+            className={inputClass}
+          >
+            <option value="">Non, classe à part entière</option>
+            {mainClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                Groupe de {c.label}
+              </option>
+            ))}
+          </select>
+          {parent && (
+            <p className="mt-1 text-xs text-ink-soft">
+              Même cycle, même scolarité ({formatAmount(parent.tuition_amount)}), mêmes tranches et mêmes frais que {parent.label}. Les tarifs se
+              règlent sur {parent.label}.
+            </p>
+          )}
+        </Field>
+
+        {!parent && (
         <Field label="Cycle">
           <select
             required
@@ -75,6 +108,7 @@ export function ClassFormModal({
             ))}
           </select>
         </Field>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Code">
@@ -97,6 +131,7 @@ export function ClassFormModal({
           </Field>
         </div>
 
+        {!parent && (
         <Field label="Scolarité annuelle (XOF)">
           <input
             required
@@ -108,6 +143,7 @@ export function ClassFormModal({
             className={inputClass}
           />
         </Field>
+        )}
 
         <Field label="Description (optionnel)">
           <textarea

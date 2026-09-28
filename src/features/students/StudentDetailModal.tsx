@@ -1,8 +1,9 @@
-import { AlertTriangle, Download, GraduationCap, HandCoins, Phone, Receipt, User } from 'lucide-react';
+import { AlertTriangle, Download, GraduationCap, HandCoins, Phone, Receipt, User, Utensils } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Loader } from '@/shared/components/Loader';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useFeeSubscriptions, useUpdateFeeSubscriptions } from '@/features/fees/useFeeSubscriptions';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { LineStatus } from '@/features/payments/LineStatus';
 import { toReceiptData, useStudentPayments } from '@/features/payments/usePayments';
@@ -27,6 +28,47 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof User; children: s
     <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">
       <Icon className="h-3.5 w-3.5" /> {children}
     </p>
+  );
+}
+
+/**
+ * Frais « sur inscription » (cantine, TD…) : cocher un frais le rend dû pour
+ * cet élève, mois par mois pour un frais mensuel. Masqué s'il n'y en a aucun.
+ */
+function FeeSubscriptions({ studentId, canEdit }: { studentId: number; canEdit: boolean }) {
+  const { data: fees } = useFeeSubscriptions(studentId);
+  const update = useUpdateFeeSubscriptions(studentId);
+
+  if (!fees || fees.length === 0) return null;
+
+  function toggle(feeTypeId: number) {
+    const ids = fees!.filter((fee) => fee.subscribed).map((fee) => fee.fee_type_id);
+    update.mutate(ids.includes(feeTypeId) ? ids.filter((id) => id !== feeTypeId) : [...ids, feeTypeId]);
+  }
+
+  return (
+    <div>
+      <SectionTitle icon={Utensils}>Inscriptions (cantine, TD…)</SectionTitle>
+      <ul className="divide-y divide-border rounded-xl border border-border">
+        {fees.map((fee) => (
+          <li key={fee.fee_type_id} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
+            <label className="flex min-w-0 items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={fee.subscribed}
+                disabled={!canEdit || update.isPending}
+                onChange={() => toggle(fee.fee_type_id)}
+              />
+              <span className="font-medium text-ink">{fee.label}</span>
+            </label>
+            <span className="font-tabular text-xs whitespace-nowrap text-ink-soft">
+              {formatAmount(fee.amount)}
+              {fee.billing_cycle === 'monthly' ? ` / mois · ${fee.months.length} mois` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -119,7 +161,7 @@ export function StudentDetailModal({
             {balance && balance.unpaid_items.length > 0 && (
               <ul className="mt-3 divide-y divide-border rounded-lg border border-border bg-surface">
                 {balance.unpaid_items.map((item) => (
-                  <li key={`${item.type}-${item.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <li key={item.key} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
                     <span className="font-medium text-ink">{item.label}</span>
                     <LineStatus paid={item.paid} remaining={item.remaining} />
                   </li>
@@ -140,6 +182,8 @@ export function StudentDetailModal({
               <p className="mt-3 text-sm font-medium text-success">Tout est réglé pour la classe actuelle.</p>
             )}
           </div>
+
+          <FeeSubscriptions studentId={student.id} canEdit={hasPermission('students.update')} />
 
           {/* Historique */}
           {hasPermission('payments.view') && (

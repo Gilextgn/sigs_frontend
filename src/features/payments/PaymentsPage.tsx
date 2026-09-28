@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Download, Eye, Plus, Receipt, Trash2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useSchoolSettings } from '@/features/settings/useSettings';
-import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { Modal } from '@/shared/components/Modal';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { viewIconClass, downloadIconClass, deleteIconClass } from '@/shared/components/actionStyles';
@@ -24,6 +25,7 @@ export default function PaymentsPage() {
   const { openPayment, openStudent } = usePaymentDesk();
   const [detailId, setDetailId] = useState<number | null>(null);
   const [toDelete, setToDelete] = useState<PaymentRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
 
   const { data, isLoading } = usePayments();
   const { data: settings } = useSchoolSettings();
@@ -41,10 +43,17 @@ export default function PaymentsPage() {
     }
   }, [location, navigate, openPayment]);
 
-  async function handleConfirmDelete() {
-    if (!toDelete) return;
-    await deletePayment.mutateAsync(toDelete.id);
+  function closeDelete() {
     setToDelete(null);
+    setDeleteReason('');
+    deletePayment.reset();
+  }
+
+  async function handleConfirmDelete(event: FormEvent) {
+    event.preventDefault();
+    if (!toDelete) return;
+    await deletePayment.mutateAsync({ id: toDelete.id, reason: deleteReason.trim() });
+    closeDelete();
   }
 
   async function handleDownload(payment: PaymentRow) {
@@ -159,18 +168,42 @@ export default function PaymentsPage() {
 
       {detailId !== null && <PaymentDetailModal paymentId={detailId} onClose={() => setDetailId(null)} />}
 
-      <ConfirmDialog
-        open={toDelete !== null}
-        title="Supprimer ce paiement ?"
-        message={
-          toDelete
-            ? `Le paiement ${toDelete.reference_code} sera supprimé et les montants redeviendront disponibles à l'encaissement. Cette action est irréversible.`
-            : ''
-        }
-        confirmLabel="Supprimer"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setToDelete(null)}
-      />
+      {toDelete && (
+        <Modal title="Supprimer ce paiement ?" onClose={closeDelete} widthClassName="max-w-sm">
+          <form onSubmit={handleConfirmDelete} className="space-y-4">
+            <p className="text-sm text-ink-soft">
+              Le paiement {toDelete.reference_code} ({currency.format(Number(toDelete.total_paid_amount))} XOF) sera annulé et les
+              montants redeviendront disponibles à l'encaissement. L'annulation figurera dans le point de caisse.
+            </p>
+            <label className="block text-sm">
+              <span className="font-medium text-ink">Motif de l'annulation</span>
+              <textarea
+                value={deleteReason}
+                onChange={(event) => setDeleteReason(event.target.value)}
+                rows={2}
+                required
+                minLength={5}
+                autoFocus
+                placeholder="Ex. : erreur sur l'élève, montant mal saisi…"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink"
+              />
+            </label>
+            {deletePayment.isError && <p className="text-sm text-danger">{getApiErrorMessage(deletePayment.error)}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={closeDelete} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={deletePayment.isPending || deleteReason.trim().length < 5}
+                className="rounded-lg bg-danger px-4 py-2 text-sm font-medium text-on-danger transition hover:opacity-90 disabled:opacity-50"
+              >
+                Supprimer
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

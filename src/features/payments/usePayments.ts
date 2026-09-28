@@ -40,6 +40,19 @@ export interface PaymentRow {
   cashier: { full_name: string } | null;
   items: PaymentItemWithLabel[];
   remaining_amount?: number;
+  /** Présent à la création et dans le détail : QR code de vérification du reçu. */
+  verification_token?: string;
+  deliveries?: ReceiptDeliveryRow[];
+  receipt_contacts?: { email: string | null; whatsapp: string | null; whatsapp_auto: boolean };
+}
+
+export interface ReceiptDeliveryRow {
+  id: number;
+  channel: 'email' | 'whatsapp';
+  recipient: string;
+  status: 'sent' | 'failed';
+  error: string | null;
+  created_at: string;
 }
 
 interface PaginatedPayments {
@@ -50,6 +63,8 @@ export interface NewPaymentLine {
   item_type: 'TRANCHE' | 'AUTRE_FRAIS';
   tuition_installment_id?: number;
   fee_type_id?: number;
+  /** Mois réglé (1-12) pour un frais mensuel. */
+  period_month?: number;
   paid_amount: number;
 }
 
@@ -78,7 +93,34 @@ export function toReceiptData(payment: PaymentRow, classLabel?: string | null) {
       remaining_after: Number(item.remaining_after),
     })),
     total_paid_amount: payment.total_paid_amount,
+    verification_token: payment.verification_token ?? null,
+    created_at: payment.created_at ?? null,
   };
+}
+
+export function useSendReceipt(paymentId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (channels?: ('email' | 'whatsapp')[]) =>
+      (await apiClient.post<PaymentDetail>(`/payments/${paymentId}/send-receipt`, { channels })).data,
+    onSuccess: (payment) => queryClient.setQueryData(['payments', 'detail', paymentId], payment),
+  });
+}
+
+/** Message pré-rempli pour l'envoi manuel sur WhatsApp (quand l'envoi automatique n'est pas activé). */
+export function whatsappReceiptLink(payment: PaymentRow, schoolName: string, verificationUrl: string) {
+  const number = payment.receipt_contacts?.whatsapp;
+  if (!number) return null;
+  const student = payment.student ? `${payment.student.first_name} ${payment.student.last_name}` : '';
+  const total = new Intl.NumberFormat('fr-FR').format(Number(payment.total_paid_amount));
+  const text = [
+    `${schoolName} — Reçu de paiement`,
+    `Élève : ${student}`,
+    `Montant versé : ${total} F CFA`,
+    `Référence : ${payment.reference_code}`,
+    `Vérifier ce reçu : ${verificationUrl}`,
+  ].join('\n');
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
 export function useStudentPayments(studentId: number | null) {
@@ -108,7 +150,7 @@ export function useCreatePayment() {
     onSuccess: () => {
       // Un encaissement change les soldes partout : débiteurs, fiche élève,
       // rentrée (un élève bloqué peut se débloquer), accueil.
-      for (const key of ['payments', 'dashboard', 'debtors', 'students', 'academic-years']) {
+      for (const key of ['payments', 'dashboard', 'debtors', 'students', 'academic-years', 'cash']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     },
@@ -118,11 +160,13 @@ export function useCreatePayment() {
 export function useDeletePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => apiClient.delete(`/payments/${id}`),
+    // Motif obligatoire : l'annulation apparaît dans le point de caisse.
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) =>
+      apiClient.delete(`/payments/${id}`, { data: { reason } }),
     onSuccess: () => {
       // Un encaissement change les soldes partout : débiteurs, fiche élève,
       // rentrée (un élève bloqué peut se débloquer), accueil.
-      for (const key of ['payments', 'dashboard', 'debtors', 'students', 'academic-years']) {
+      for (const key of ['payments', 'dashboard', 'debtors', 'students', 'academic-years', 'cash']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     },

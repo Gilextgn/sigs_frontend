@@ -3,28 +3,19 @@ import { AlertTriangle, Check, RefreshCcw } from 'lucide-react';
 import { Modal } from '@/shared/components/Modal';
 import { Spinner } from '@/shared/components/Loader';
 import { StudentSearchSelect } from '@/features/students/StudentSearchSelect';
-import { useStudent, useStudentBalance, type StudentRow } from '@/features/students/useStudents';
-import { useTranches } from '@/features/tranches/useTranches';
-import { useFeeTypes } from '@/features/fees/useFeeTypes';
-import { useSchoolSettings } from '@/features/settings/useSettings';
-import { downloadPaymentReceiptPdf } from '@/shared/lib/pdf';
+import { useStudent, type StudentRow } from '@/features/students/useStudents';
+import { usePayableLines, type PayableLineRow } from '@/features/fees/useFeeSubscriptions';
 import { formatAmount, formatNumber } from '@/shared/lib/format';
 import { LineStatus } from './LineStatus';
-import { toReceiptData, useCreatePayment, useStudentPayments, type NewPaymentLine } from './usePayments';
+import { PaymentDetailModal } from './PaymentDetailModal';
+import { useCreatePayment, type NewPaymentLine } from './usePayments';
 
-interface PayableLine {
-  key: string;
-  label: string;
-  group: 'Tranches' | 'Autres frais';
-  amount: number;
-  paid: number;
-  remaining: number;
-}
+type PayableLine = PayableLineRow;
 
 /**
  * Encaisser : choisir l'élève (ou l'arriver déjà choisi depuis sa fiche,
  * les débiteurs, l'accueil), cocher les lignes, valider. Le reçu part
- * aussitôt en PDF.
+ * aussitôt au parent (mail / WhatsApp) et l'écran propose le ticket à imprimer.
  *
  * Un montant inférieur au reste d'une ligne est accepté : c'est un acompte,
  * la ligne n'est pas soldée et l'écran comme le reçu le disent.
@@ -35,59 +26,33 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
   const [selectedAmounts, setSelectedAmounts] = useState<Record<string, string>>({});
   const [prefilledFor, setPrefilledFor] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createdPaymentId, setCreatedPaymentId] = useState<number | null>(null);
 
   const { data: fetchedStudent } = useStudent(pickedStudent ? null : studentId);
   const student = pickedStudent ?? fetchedStudent ?? null;
-  const classId = student?.class?.id;
-
-  const { data: tranches, isLoading: tranchesLoading } = useTranches(classId ?? '');
-  const { data: feeTypes } = useFeeTypes();
-  const { data: studentPayments, isLoading: paymentsLoading } = useStudentPayments(studentId);
+  // Lignes calculées par le serveur (même calcul que le reste dû et les
+  // débiteurs) : tranches, frais, et un mois par ligne pour la cantine, les TD…
+  const { data: payable, isLoading: linesLoading } = usePayableLines(student ? studentId : null);
   // Reste dû que les tranches de la classe ne portent pas : invisible dans les
   // lignes ci-dessous, donc à signaler pour ne pas laisser croire à un solde nul.
-  const { data: balance } = useStudentBalance(studentId);
-  const unlisted = balance?.unlisted_amount ?? 0;
+  const unlisted = payable?.unlisted_amount ?? 0;
   const createPayment = useCreatePayment();
-  const { data: settings } = useSchoolSettings();
 
-  const lines = useMemo<PayableLine[]>(() => {
-    if (!classId) return [];
-
-    const paidByKey = new Map<string, number>();
-    for (const payment of studentPayments?.data ?? []) {
-      for (const item of payment.items) {
-        const key = item.item_type === 'TRANCHE' ? `T-${item.tuition_installment_id}` : `F-${item.fee_type_id}`;
-        paidByKey.set(key, (paidByKey.get(key) ?? 0) + Number(item.paid_amount));
-      }
-    }
-
-    const build = (key: string, label: string, group: PayableLine['group'], amount: number): PayableLine => {
-      const paid = paidByKey.get(key) ?? 0;
-      return { key, label, group, amount, paid, remaining: Math.max(amount - paid, 0) };
-    };
-
-    return [
-      ...(tranches ?? []).map((t) => build(`T-${t.id}`, t.label, 'Tranches', Number(t.amount))),
-      ...(feeTypes ?? [])
-        .filter((fee) => fee.classes.some((c) => c.id === classId))
-        .map((fee) => build(`F-${fee.id}`, fee.label, 'Autres frais', Number(fee.amount))),
-    ];
-  }, [classId, tranches, feeTypes, studentPayments]);
-
-  const linesReady = !!classId && !tranchesLoading && !paymentsLoading;
+  const lines = useMemo<PayableLine[]>(() => payable?.lines ?? [], [payable]);
+  const linesReady = !!student && !linesLoading && !!payable;
 
   // Arrivé depuis une fiche ou un débiteur : la prochaine ligne due est
   // pré-cochée pour son reste exact, le montant est visible avant le clic.
   useEffect(() => {
     if (!linesReady || !studentId || prefilledFor === studentId) return;
-    const next = lines.find((line) => line.remaining > 0);
+    const next = lines.find((line) => line.owed && line.due && line.remaining > 0);
     setSelectedAmounts(next ? { [next.key]: String(next.remaining) } : {});
     setPrefilledFor(studentId);
   }, [linesReady, lines, studentId, prefilledFor]);
 
   // Reste dû annoncé = ce qui est encaissable ici + la scolarité qu'aucune
   // tranche ne porte (affichée en garde-fou, mais pas encaissable).
-  const outstanding = lines.reduce((sum, line) => sum + line.remaining, 0) + unlisted;
+  const outstanding = lines.filter((line) => line.owed && line.due).reduce((sum, line) => sum + line.remaining, 0) + unlisted;
   const total = Object.values(selectedAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
   const remainingAfter = lines
     .filter((line) => line.key in selectedAmounts)
@@ -140,11 +105,10 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
 
     const items: NewPaymentLine[] = Object.entries(selectedAmounts)
       .filter(([, amount]) => Number(amount) > 0)
-      .map(([key, amount]) => {
-        const [type, id] = key.split('-');
-        return type === 'T'
-          ? { item_type: 'TRANCHE', tuition_installment_id: Number(id), paid_amount: Number(amount) }
-          : { item_type: 'AUTRE_FRAIS', fee_type_id: Number(id), paid_amount: Number(amount) };
+      .map(([key, amount]): NewPaymentLine => {
+        const [type, id, month] = key.split('-');
+        if (type === 'T') return { item_type: 'TRANCHE', tuition_installment_id: Number(id), paid_amount: Number(amount) };
+        return { item_type: 'AUTRE_FRAIS', fee_type_id: Number(id), period_month: month ? Number(month) : undefined, paid_amount: Number(amount) };
       });
 
     if (items.length === 0) {
@@ -154,8 +118,7 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
 
     try {
       const payment = await createPayment.mutateAsync({ student_id: studentId, items });
-      await downloadPaymentReceiptPdf(toReceiptData(payment, student.class?.label), settings ?? null);
-      onClose();
+      setCreatedPaymentId(payment.id);
     } catch (requestError: unknown) {
       const response = (requestError as {
         response?: { data?: { message?: string; errors?: Record<string, string[]> } };
@@ -165,7 +128,12 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
     }
   }
 
-  const groups: PayableLine['group'][] = ['Tranches', 'Autres frais'];
+  const groups: PayableLine['group'][] = ['Tranches', 'Frais mensuels', 'Autres frais'];
+
+  // Paiement enregistré : on passe directement à la remise du reçu (ticket, PDF, WhatsApp).
+  if (createdPaymentId !== null) {
+    return <PaymentDetailModal paymentId={createdPaymentId} onClose={onClose} justCreated />;
+  }
 
   return (
     <Modal title="Encaisser" onClose={onClose} widthClassName="max-w-2xl">
@@ -225,6 +193,8 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
           <div className="space-y-4">
             {groups.map((group) => {
               const groupLines = lines.filter((line) => line.group === group);
+              // Pas de rubrique « Frais mensuels » vide pour une classe qui n'en a pas.
+              if (group === 'Frais mensuels' && groupLines.length === 0) return null;
               return (
                 <div key={group}>
                   <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">{group}</p>
@@ -257,7 +227,11 @@ export function NewPaymentModal({ initialStudentId = null, onClose }: { initialS
                                 {checked && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                               </span>
                               <span className="min-w-0">
-                                <span className="block truncate text-sm font-medium text-ink">{line.label}</span>
+                                <span className="block truncate text-sm font-medium text-ink">
+                                  {line.label}
+                                  {!settled && !line.due && <span className="ml-1.5 text-xs font-normal text-ink-soft">· à venir</span>}
+                                  {!settled && !line.owed && <span className="ml-1.5 text-xs font-normal text-ink-soft">· facultatif</span>}
+                                </span>
                                 <span className="block">
                                   <LineStatus paid={line.paid} remaining={line.remaining} />
                                 </span>

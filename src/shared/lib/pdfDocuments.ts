@@ -105,6 +105,9 @@ export interface PaymentReceiptData {
     remaining_after: number;
   }[];
   total_paid_amount: string | number;
+  /** Jeton du QR code de vérification (absent des anciennes réponses de l'API). */
+  verification_token?: string | null;
+  created_at?: string | null;
 }
 
 export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, settings: LetterheadInfo | null) {
@@ -181,6 +184,17 @@ export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, set
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...EMERALD);
     doc.text('Toutes les lignes réglées par ce paiement sont soldées.', 15, y);
+  }
+
+  if (payment.verification_token) {
+    const url = `${window.location.origin}/verifier/${payment.verification_token}`;
+    const qr = await (await import('qrcode')).toDataURL(url, { margin: 0, width: 240 });
+    y += 10;
+    doc.addImage(qr, 'PNG', 15, y, 28, 28);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...INK_SOFT);
+    doc.text(['Scannez ce code pour vérifier que ce reçu', "est bien enregistré par l'établissement."], 48, y + 12);
   }
 
   doc.setFontSize(8);
@@ -354,6 +368,163 @@ export async function downloadReminderListPdf(rows: ReminderRowData[], title: st
   });
 
   doc.save('relances-rentree.pdf');
+}
+
+/** Sous-ensemble du rapport /cash/report nécessaire au PDF (évite une dépendance vers features/). */
+export interface CashPointData {
+  payment_count: number;
+  total_amount: number;
+  by_class: {
+    class: string;
+    payment_count: number;
+    total_amount: number;
+    students: {
+      full_name: string;
+      matricule: string | null;
+      payments: { reference_code: string; payment_date: string; cashier: string | null; total_paid_amount: number; lines: { label: string; amount: number }[] }[];
+    }[];
+  }[];
+  by_cashier: { full_name: string | null; payment_count: number; total_amount: number }[];
+  by_line: { label: string; total_amount: number }[];
+  cancellations: { reference_code: string; student: string | null; total_paid_amount: number; deleted_at: string; deleted_by: string | null; reason: string | null }[];
+  closings: { closing_date: string; cashier: string | null; expected_amount: number; counted_amount: number; difference: number; reopened_at: string | null }[];
+}
+
+type AutoTableDoc = jsPDF & { lastAutoTable?: { finalY?: number } };
+
+/**
+ * Point de caisse A4 : remplace le cahier (par classe, chaque élève et
+ * chaque versement), puis récapitulatifs, annulations, clôtures et zone de
+ * signatures en bas de la dernière page.
+ */
+export async function downloadCashPointPdf(report: CashPointData, periodLabel: string, settings: LetterheadInfo | null) {
+  const doc: AutoTableDoc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const shortDate = (value: string) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(value));
+  let y = await addLetterhead(doc, settings);
+
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text('Point de caisse', 15, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...INK_SOFT);
+  doc.text(`${periodLabel} · édité le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date())}`, 15, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text(`${report.payment_count} paiement(s) · Total encaissé : ${formatCurrency(report.total_amount)} XOF`, 15, y);
+
+  const tableDefaults = {
+    headStyles: { fillColor: EMERALD },
+    styles: { fontSize: 8.5, cellPadding: 1.8 },
+    margin: { left: 15, right: 15 },
+  };
+  const next = (gap = 8) => (doc.lastAutoTable?.finalY ?? y) + gap;
+
+  // Détail par classe, comme le cahier.
+  const body: (string | { content: string; colSpan?: number; styles?: object })[][] = [];
+  for (const group of report.by_class) {
+    body.push([{ content: `${group.class} — ${group.payment_count} paiement(s)`, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [228, 245, 238] } }]);
+    for (const student of group.students) {
+      student.payments.forEach((payment, index) => {
+        body.push([
+          index === 0 ? student.full_name : '',
+          payment.reference_code,
+          shortDate(payment.payment_date),
+          payment.lines.map((line) => `${line.label} : ${formatCurrency(line.amount)}`).join('\n'),
+          formatCurrency(payment.total_paid_amount),
+        ]);
+      });
+    }
+    body.push([{ content: `Sous-total ${group.class}`, colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatCurrency(group.total_amount), styles: { fontStyle: 'bold', halign: 'right' } }]);
+  }
+
+  autoTable(doc, {
+    ...tableDefaults,
+    startY: y + 5,
+    head: [['Élève', 'Référence', 'Date', 'Détail', 'Montant']],
+    body: body.length ? body : [[{ content: 'Aucun paiement sur la période.', colSpan: 5, styles: { halign: 'center' } }]],
+    foot: [[{ content: 'Total général', colSpan: 4, styles: { halign: 'right' } }, formatCurrency(report.total_amount)]],
+    footStyles: { fillColor: [228, 245, 238], textColor: INK, fontStyle: 'bold', halign: 'right' },
+    columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 36 }, 2: { cellWidth: 18 }, 4: { halign: 'right', cellWidth: 24 } },
+  });
+
+  if (report.by_cashier.length > 0) {
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: next(),
+      head: [['Caissier', 'Paiements', 'Montant']],
+      body: report.by_cashier.map((row) => [row.full_name ?? '—', String(row.payment_count), formatCurrency(row.total_amount)]),
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+    });
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: next(),
+      head: [['Ligne encaissée', 'Montant']],
+      body: report.by_line.map((row) => [row.label, formatCurrency(row.total_amount)]),
+      columnStyles: { 1: { halign: 'right' } },
+    });
+  }
+
+  if (report.cancellations.length > 0) {
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: next(),
+      head: [['Paiement annulé', 'Élève', 'Montant', 'Annulé le', 'Par', 'Motif']],
+      headStyles: { fillColor: [181, 80, 46] },
+      body: report.cancellations.map((row) => [row.reference_code, row.student ?? '—', formatCurrency(row.total_paid_amount), shortDate(row.deleted_at), row.deleted_by ?? '—', row.reason ?? '—']),
+      columnStyles: { 2: { halign: 'right' } },
+    });
+  }
+
+  if (report.closings.length > 0) {
+    autoTable(doc, {
+      ...tableDefaults,
+      startY: next(),
+      head: [['Clôture', 'Caissier', 'Attendu', 'Compté', 'Écart', 'État']],
+      body: report.closings.map((row) => [
+        shortDate(row.closing_date),
+        row.cashier ?? '—',
+        formatCurrency(row.expected_amount),
+        formatCurrency(row.counted_amount),
+        formatCurrency(row.difference),
+        row.reopened_at ? 'Rouverte' : 'Clôturée',
+      ]),
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+    });
+  }
+
+  // Signatures : toujours en bas de la dernière page, sur une page neuve s'il ne reste pas la place.
+  let signatureY = next(14);
+  if (signatureY > pageHeight - 45) {
+    doc.addPage();
+    signatureY = 30;
+  }
+  signatureY = Math.max(signatureY, pageHeight - 50);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text('Le/La caissier(ère)', 15, signatureY);
+  doc.text('Le Directeur', pageWidth - 15, signatureY, { align: 'right' });
+  doc.setDrawColor(...INK_SOFT);
+  doc.setLineWidth(0.2);
+  doc.line(15, signatureY + 22, 80, signatureY + 22);
+  doc.line(pageWidth - 80, signatureY + 22, pageWidth - 15, signatureY + 22);
+
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page += 1) {
+    doc.setPage(page);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...INK_SOFT);
+    doc.text(`Point de caisse · ${periodLabel} · page ${page}/${pages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+  }
+
+  doc.save(`point-caisse-${periodLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
 }
 
 export interface TimetableCellData {

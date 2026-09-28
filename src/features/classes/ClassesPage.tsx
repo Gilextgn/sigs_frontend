@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Plus, School, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pencil, Plus, School, Search, Split, Trash2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
@@ -7,7 +7,7 @@ import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
-import { useClasses, useDeleteClass, type SchoolClassRow } from './useClasses';
+import { useClasses, useDeleteClass, useReorderClasses, type SchoolClassRow } from './useClasses';
 import { ClassFormModal } from './ClassFormModal';
 import { currency } from '@/shared/lib/format';
 
@@ -16,13 +16,25 @@ export default function ClassesPage() {
   const { hasPermission } = useAuth();
   const canManage = hasPermission('classes.manage');
   const [search, setSearch] = useState('');
-  const [modalState, setModalState] = useState<{ open: boolean; editing: SchoolClassRow | null }>({
+  const [modalState, setModalState] = useState<{ open: boolean; editing: SchoolClassRow | null; groupOf?: SchoolClassRow | null }>({
     open: false,
     editing: null,
   });
   const [toDelete, setToDelete] = useState<SchoolClassRow | null>(null);
   const { data, isLoading, isError } = useClasses(search);
   const deleteClass = useDeleteClass();
+  const reorder = useReorderClasses();
+  // Pendant une recherche, la liste est filtrée : déplacer n'aurait pas de sens.
+  const canReorder = canManage && !search.trim();
+
+  function move(classId: number, delta: -1 | 1) {
+    const ids = (data ?? []).map((row) => row.id);
+    const from = ids.indexOf(classId);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    reorder.mutate(ids);
+  }
   const { pageRows, ...pagination } = usePaginatedRows(data);
 
   async function handleConfirmDelete() {
@@ -59,6 +71,7 @@ export default function ClassesPage() {
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
             <tr>
+              {canReorder && <th className="w-16 px-2 py-3" title="Ordre pédagogique : de la plus petite à la plus grande classe">Ordre</th>}
               <th className="px-4 py-3">Code</th>
               <th className="px-4 py-3">Classe</th>
               <th className="px-4 py-3">Cycle</th>
@@ -68,13 +81,13 @@ export default function ClassesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <SkeletonTableRows columns={6} />}
+            {isLoading && <SkeletonTableRows columns={canReorder ? 7 : 6} />}
             {isError && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-danger">Impossible de charger les classes.</td></tr>
+              <tr><td colSpan={canReorder ? 7 : 6} className="px-4 py-10 text-center text-danger">Impossible de charger les classes.</td></tr>
             )}
             {!isLoading && !isError && (data?.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-14 text-center">
+                <td colSpan={canReorder ? 7 : 6} className="px-4 py-14 text-center">
                   <School className="mx-auto h-8 w-8 text-ink-soft" />
                   <p className="mt-2 text-sm text-ink-soft">Aucune classe créée pour le moment.</p>
                 </td>
@@ -82,8 +95,37 @@ export default function ClassesPage() {
             )}
             {pageRows.map((schoolClass) => (
               <tr key={schoolClass.id} className="transition hover:bg-paper">
+                {canReorder && (
+                  <td className="px-2 py-3">
+                    <div className="flex items-center gap-0.5">
+                      {([-1, 1] as const).map((delta) => {
+                        const index = data?.indexOf(schoolClass) ?? -1;
+                        const disabled = reorder.isPending || index + delta < 0 || index + delta >= (data?.length ?? 0);
+                        const Icon = delta < 0 ? ChevronUp : ChevronDown;
+                        return (
+                          <button
+                            key={delta}
+                            type="button"
+                            onClick={() => move(schoolClass.id, delta)}
+                            disabled={disabled}
+                            className="rounded p-1 text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-30"
+                            aria-label={delta < 0 ? 'Monter' : 'Descendre'}
+                            title={delta < 0 ? 'Monter' : 'Descendre'}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+                )}
                 <td className="font-tabular px-4 py-3 text-ink-soft">{schoolClass.code}</td>
-                <td className="px-4 py-3 font-medium text-ink">{schoolClass.label}</td>
+                <td className="px-4 py-3 font-medium text-ink">
+                  {schoolClass.label}
+                  {schoolClass.parent && (
+                    <span className="block text-xs font-normal text-ink-soft">Groupe de {schoolClass.parent.label} · tarifs communs</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-ink-soft">{schoolClass.cycle?.label ?? '—'}</td>
                 <td className="font-tabular px-4 py-3 text-ink">
                   {currency.format(Number(schoolClass.tuition_amount))} XOF
@@ -98,6 +140,16 @@ export default function ClassesPage() {
                   <div className="flex justify-end gap-1">
                     {canManage && (
                       <>
+                        {!schoolClass.parent_class_id && (
+                          <button
+                            onClick={() => setModalState({ open: true, editing: null, groupOf: schoolClass })}
+                            className={editIconClass}
+                            aria-label="Dédoubler"
+                            title="Dédoubler (ajouter un groupe : CE1 B, CP2…)"
+                          >
+                            <Split className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setModalState({ open: true, editing: schoolClass })}
                           className={editIconClass}
@@ -125,7 +177,11 @@ export default function ClassesPage() {
       </div>
 
       {modalState.open && (
-        <ClassFormModal editing={modalState.editing} onClose={() => setModalState({ open: false, editing: null })} />
+        <ClassFormModal
+          editing={modalState.editing}
+          groupOf={modalState.groupOf ?? null}
+          onClose={() => setModalState({ open: false, editing: null })}
+        />
       )}
 
       <ConfirmDialog

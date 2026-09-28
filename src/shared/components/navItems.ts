@@ -10,6 +10,7 @@ import {
   House,
   Layers,
   Lock,
+  NotebookPen,
   Receipt,
   RefreshCcw,
   School,
@@ -58,6 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: HandCoins,
     children: [
       { code: 'payments', label: 'Paiements', path: '/payments', icon: Receipt, permission: 'payments.view' },
+      { code: 'cash-point', label: 'Point de caisse', path: '/cash-point', icon: NotebookPen, permission: 'payments.view' },
       { code: 'statistics', label: 'Statistiques', path: '/statistics', icon: BarChart3, permission: 'dashboard.view' },
     ],
   },

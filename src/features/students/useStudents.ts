@@ -12,7 +12,14 @@ export interface StudentRow {
   status: string;
   class: { id: number; label: string; tuition_amount: string } | null;
   academic_year?: { id: number; code: string } | null;
-  guardian: { id: number; full_name: string; relationship_label: string; phone: string } | null;
+  guardian: {
+    id: number;
+    full_name: string;
+    relationship_label: string;
+    phone: string;
+    email?: string | null;
+    whatsapp?: string | null;
+  } | null;
   created_at: string;
 }
 
@@ -32,6 +39,8 @@ export interface NewStudentPayload {
     relationship_label: string;
     phone: string;
     address?: string;
+    email?: string;
+    whatsapp?: string;
   };
 }
 
@@ -64,6 +73,7 @@ export function useCreateStudent() {
 }
 
 export interface UpdateStudentPayload {
+  guardian?: { phone?: string; email?: string | null; whatsapp?: string | null };
   class_id?: number;
   first_name?: string;
   last_name?: string;
@@ -85,8 +95,13 @@ export function useUpdateStudent() {
 }
 
 export interface UnpaidItemRow {
+  /** Identifiant unique de la ligne : T-3, F-5, ou M-5-10 (frais mensuel, octobre). */
+  key: string;
   type: 'TRANCHE' | 'AUTRE_FRAIS';
   id: number;
+  /** Mois réglé par un frais mensuel (1-12), sinon null. */
+  period_month: number | null;
+  group: 'Tranches' | 'Autres frais' | 'Frais mensuels';
   label: string;
   amount: number;
   paid: number;

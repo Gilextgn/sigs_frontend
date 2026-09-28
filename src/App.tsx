@@ -22,6 +22,7 @@ const ClassesPage = lazyPage(() => import('@/features/classes/ClassesPage'));
 const TranchesPage = lazyPage(() => import('@/features/tranches/TranchesPage'));
 const FeesPage = lazyPage(() => import('@/features/fees/FeesPage'));
 const PaymentsPage = lazyPage(() => import('@/features/payments/PaymentsPage'));
+const CashPointPage = lazyPage(() => import('@/features/cash/CashPointPage'));
 const DebtorsPage = lazyPage(() => import('@/features/debtors/DebtorsPage'));
 const TeachersPage = lazyPage(() => import('@/features/teachers/TeachersPage'));
 const PayrollPage = lazyPage(() => import('@/features/payroll/PayrollPage'));
@@ -34,6 +35,7 @@ const YearClosingPage = lazyPage(() => import('@/features/settings/YearClosingPa
 const SchedulePage = lazyPage(() => import('@/features/teachers/SchedulePage'));
 const AttendancePage = lazyPage(() => import('@/features/teachers/AttendancePage'));
 const SubjectsPage = lazyPage(() => import('@/features/teachers/SubjectsPage'));
+const VerifyReceiptPage = lazyPage(() => import('@/features/payments/VerifyReceiptPage'));
 
 function RouteFallback() {
   return (
@@ -92,6 +94,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verifier/:token" element={<VerifyReceiptPage />} />
 
         <Route element={<RequireAuth />}>
           <Route element={<RequirePlatform />}>
@@ -111,6 +114,7 @@ function AppRoutes() {
               <Route path="/tranches" element={<TranchesPage />} />
               <Route path="/fees" element={<FeesPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/cash-point" element={<CashPointPage />} />
               <Route path="/debtors" element={<DebtorsPage />} />
               <Route path="/teachers" element={<TeachersPage />} />
               <Route path="/schedule" element={<SchedulePage />} />

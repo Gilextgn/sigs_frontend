@@ -9,6 +9,9 @@ export interface FeeTypeRow {
   amount: string;
   is_active: boolean;
   is_mandatory: boolean;
+  /** « monthly » : montant d'un mois, dû pour chacun des mois listés. */
+  billing_cycle: 'once' | 'monthly';
+  months: number[] | null;
   classes: { id: number; label: string }[];
 }
 
@@ -19,6 +22,8 @@ export interface FeeTypePayload {
   amount: number;
   class_ids: number[];
   is_mandatory?: boolean;
+  billing_cycle?: 'once' | 'monthly';
+  months?: number[] | null;
 }
 
 export function useFeeTypes(search?: string) {

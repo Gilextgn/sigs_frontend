@@ -15,13 +15,17 @@ export interface SchoolClassRow {
   description: string | null;
   is_active: boolean;
   cycle: SchoolCycle | null;
+  /** Classe dédoublée : groupe (CE1 B) rattaché à sa classe principale (CE1 A). */
+  parent_class_id: number | null;
+  parent?: { id: number; label: string } | null;
 }
 
 export interface ClassPayload {
   cycle_id: number;
+  parent_class_id?: number | null;
   code: string;
   label: string;
-  tuition_amount: number;
+  tuition_amount?: number;
   description?: string;
 }
 
@@ -54,6 +58,21 @@ export function useUpdateClass() {
     mutationFn: async ({ id, payload }: { id: number; payload: Partial<ClassPayload> }) =>
       (await apiClient.put(`/classes/${id}`, payload)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['classes'] }),
+  });
+}
+
+/** Ordre pédagogique : on envoie la liste complète des classes dans le nouvel ordre. */
+export function useReorderClasses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: number[]) => (await apiClient.put<SchoolClassRow[]>('/classes/reorder', { ids })).data,
+    // Affichage immédiat : la flèche ne doit pas attendre le serveur.
+    onMutate: (ids) => {
+      queryClient.setQueryData<SchoolClassRow[]>(['classes', ''], (rows) =>
+        rows ? ids.map((id) => rows.find((row) => row.id === id)).filter((row): row is SchoolClassRow => !!row) : rows,
+      );
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['classes'] }),
   });
 }
 

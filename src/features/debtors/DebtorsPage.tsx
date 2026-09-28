@@ -153,6 +153,9 @@ export default function DebtorsPage() {
                   </td>
                   <td className="font-tabular px-4 py-3 text-right font-medium text-danger">
                     {currency.format(d.outstanding_amount)}
+                    {d.fees_outstanding > 0 && (
+                      <span className="block text-xs font-normal text-gold">+ {currency.format(d.fees_outstanding)} de frais</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
