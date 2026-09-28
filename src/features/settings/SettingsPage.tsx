@@ -10,8 +10,53 @@ import {
   useCreateAcademicYear,
   useDeleteLetterhead,
   useSchoolSettings,
+  useUpdateSettings,
   useUploadLetterhead,
 } from './useSettings';
+
+/** Nom officiel de l'école : en tête des reçus, états, messages WhatsApp et page de vérification. */
+function SchoolNameCard({ current, canEdit }: { current: string; canEdit: boolean }) {
+  const update = useUpdateSettings();
+  const [name, setName] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const value = name ?? (current.toLocaleLowerCase('fr-FR') === 'mon école' ? '' : current);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaved(false);
+    await update.mutateAsync({ school_name: value.trim() });
+    setName(null);
+    setSaved(true);
+  }
+
+  return (
+    <article className="rounded-xl border border-border bg-surface p-5">
+      <h3 className="font-display text-base font-semibold text-ink">Nom de l'école</h3>
+      <p className="mt-0.5 text-xs text-ink-soft">Affiché sur les reçus, les états imprimés, les messages envoyés aux parents et la page de vérification des reçus.</p>
+      <form onSubmit={save} className="mt-4 flex flex-wrap gap-2">
+        <input
+          required
+          maxLength={160}
+          disabled={!canEdit}
+          value={value}
+          onChange={(e) => {
+            setName(e.target.value);
+            setSaved(false);
+          }}
+          placeholder="Ex. : Complexe Scolaire Les Lauréats"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+        />
+        {canEdit && (
+          <button type="submit" disabled={update.isPending || !value.trim() || value.trim() === current} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50">
+            {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        )}
+      </form>
+      {saved && <p className="mt-2 flex items-center gap-1 text-xs font-medium text-success"><CheckCircle2 className="h-3.5 w-3.5" /> Nom enregistré.</p>}
+      {update.isError && <p className="mt-2 text-xs font-medium text-danger">{getApiErrorMessage(update.error)}</p>}
+    </article>
+  );
+}
 
 export default function SettingsPage() {
   const { hasPermission } = useAuth();
@@ -73,6 +118,8 @@ export default function SettingsPage() {
         <SettingsIcon className="h-5 w-5 text-primary" />
         <h2 className="font-display text-xl font-semibold text-ink">Paramètres de l'établissement</h2>
       </div>
+
+      <SchoolNameCard current={settings?.school_name ?? ''} canEdit={canManageYears} />
 
       {/* En-tête des documents */}
       <article className="rounded-xl border border-border bg-surface p-5">

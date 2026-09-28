@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Layers, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useClasses } from '@/features/classes/useClasses';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
@@ -28,6 +28,14 @@ export default function TranchesPage() {
   const { data: classes } = useClasses();
   const { data, isLoading, isError } = useTranches(classId);
   const deleteTranche = useDeleteTranche();
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (label: string) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
   // Tranches rangées par classe, dans l'ordre des classes (ordre pédagogique), puis par échéance.
   const groups = useMemo(() => {
     const order = new Map((classes ?? []).map((c, index) => [c.id, index]));
@@ -92,10 +100,20 @@ export default function TranchesPage() {
         {groups.map(({ schoolClass, label, tranches, total }) => {
           const tuition = Number(schoolClass?.tuition_amount ?? 0);
           const left = tuition - total;
+          // Filtré sur une classe : sa carte est ouverte d'office.
+          const isOpen = !!classId || open.has(label);
           return (
             <section key={label} className="overflow-hidden rounded-xl border border-border bg-surface">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-paper px-4 py-2.5">
-                <h3 className="font-display text-base font-semibold text-ink">{label}</h3>
+              <button
+                type="button"
+                onClick={() => toggle(label)}
+                aria-expanded={isOpen}
+                className={`flex w-full flex-wrap items-center justify-between gap-2 bg-paper px-4 py-2.5 text-left transition hover:bg-border/40 ${isOpen ? 'border-b border-border' : ''}`}
+              >
+                <h3 className="flex items-center gap-2 font-display text-base font-semibold text-ink">
+                  <ChevronDown className={`h-4 w-4 text-ink-soft transition ${isOpen ? 'rotate-180' : ''}`} />
+                  {label}
+                </h3>
                 <p className="text-xs text-ink-soft">
                   {tranches.length} tranche(s) · <span className="font-tabular">{currency.format(total)}</span>
                   {schoolClass && (
@@ -105,7 +123,8 @@ export default function TranchesPage() {
                     </>
                   )}
                 </p>
-              </div>
+              </button>
+              {isOpen && (
               <table className="w-full text-left text-sm">
                 <tbody className="divide-y divide-border">
                   {tranches.map((tranche) => (
@@ -129,6 +148,7 @@ export default function TranchesPage() {
                   ))}
                 </tbody>
               </table>
+              )}
             </section>
           );
         })}

@@ -1,115 +1,40 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, Download, Pencil, Plus, Printer, Settings2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Download, Printer, Settings2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthContext';
 import { useClasses } from '@/features/classes/useClasses';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
-import { Pagination } from '@/shared/components/Pagination';
-import { deleteIconClass, editIconClass } from '@/shared/components/actionStyles';
-import { Modal } from '@/shared/components/Modal';
-import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useSchoolSettings } from '@/features/settings/useSettings';
-import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { downloadTimetablePdf } from '@/shared/lib/pdf';
 import { useTeachers } from './useTeachers';
-import { DAYS, buildTimeGrid, hhmm, subjectColor, timeRange } from './timetable';
+import { DAYS, buildTimeGrid, hhmm, subjectColor } from './timetable';
 import { TimetableGrid, scheduleDetail } from './TimetableGrid';
-import {
-  useAssignments,
-  useCreateAssignment,
-  useCreateSchedule,
-  useDeleteSchedule,
-  useSchedules,
-  useSubjects,
-  useUpdateSchedule,
-  type AssignmentRow,
-  type ScheduleRow,
-} from './useTeaching';
+import { useSchedules } from './useTeaching';
 
 type View = 'class' | 'teacher';
 
+/** Consultation de l'emploi du temps ; la saisie se fait sur l'écran « Affectations et créneaux ». */
 export default function SchedulePage() {
+  const { hasPermission } = useAuth();
   // Ce qu'on regarde : l'emploi du temps d'une classe, ou celui d'un enseignant.
   const [view, setView] = useState<View>('class');
   const [viewClassId, setViewClassId] = useState<number | ''>('');
   const [viewTeacherId, setViewTeacherId] = useState<number | ''>('');
 
-  const [showConfig, setShowConfig] = useState(false);
-  const [classId, setClassIdState] = useState<number | ''>('');
-  const [teacherId, setTeacherIdState] = useState<number | ''>('');
-  const [subjectId, setSubjectIdState] = useState<number | ''>('');
-  const [assignmentId, setAssignmentIdState] = useState<number | ''>('');
-  const setClassId = (value: string | number) => setClassIdState(Number(value));
-  const setTeacherId = (value: string | number) => setTeacherIdState(Number(value));
-  const setSubjectId = (value: string | number) => setSubjectIdState(Number(value));
-  const setAssignmentId = (value: string | number) => setAssignmentIdState(Number(value));
-  const [day, setDay] = useState(1);
-  const [startsAt, setStartsAt] = useState('08:00');
-  const [endsAt, setEndsAt] = useState('09:00');
-  const [room, setRoom] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [toDelete, setToDelete] = useState<ScheduleRow | null>(null);
-  const [toEdit, setToEdit] = useState<ScheduleRow | null>(null);
-
   const { data: classes } = useClasses();
   const { data: teachers } = useTeachers('active');
-  const { data: subjects } = useSubjects();
-  const { data: assignments } = useAssignments();
   const { data: settings } = useSchoolSettings();
-  const { data: schedules } = useSchedules(
-    view === 'class' ? { classId: viewClassId } : { teacherId: viewTeacherId },
-  );
-  const createAssignment = useCreateAssignment();
-  const createSchedule = useCreateSchedule();
-  const deleteSchedule = useDeleteSchedule();
-  const { pageRows, ...pagination } = usePaginatedRows(schedules);
+  const { data: schedules } = useSchedules(view === 'class' ? { classId: viewClassId } : { teacherId: viewTeacherId });
 
   const teacherRows = teachers?.data ?? [];
-  const selectedAssignment = assignments?.find((assignment) => assignment.id === assignmentId);
-  const filteredAssignments = useMemo(
-    () =>
-      (assignments ?? []).filter(
-        (assignment) =>
-          (!classId || assignment.class_id === classId) && (!subjectId || assignment.subject_id === subjectId) && (!teacherId || assignment.teacher_id === teacherId),
-      ),
-    [assignments, classId, subjectId, teacherId],
-  );
-
   const selectionLabel =
     view === 'class'
       ? (classes ?? []).find((schoolClass) => schoolClass.id === viewClassId)?.label ?? 'Toutes les classes'
       : teacherRows.find((teacher) => teacher.id === viewTeacherId)?.full_name ?? 'Tous les enseignants';
-
-  async function addAssignment() {
-    setError(null);
-    if (!teacherId || !classId || !subjectId) return setError('Sélectionnez l’enseignant, la classe et la matière.');
-    try {
-      // Tarif vide : celui de la fiche de l'enseignant.
-      const assignment = await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_id: Number(subjectId), hourly_rate: hourlyRate ? Number(hourlyRate) : undefined });
-      setAssignmentId(assignment.id);
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Cette affectation existe déjà ou est invalide.'));
-    }
-  }
-
-  async function addSchedule() {
-    setError(null);
-    if (!classId || !subjectId || !assignmentId) return setError('Sélectionnez une classe, une matière et une affectation.');
-    try {
-      await createSchedule.mutateAsync({ class_id: Number(classId), subject_id: Number(subjectId), teacher_assignment_id: Number(assignmentId), day_of_week: day, starts_at: startsAt, ends_at: endsAt, room: room || undefined });
-      // Ce qu'on vient de planifier doit se voir : la vue suit la classe saisie.
-      if (view === 'class' && viewClassId !== classId) setViewClassId(Number(classId));
-    } catch (requestError) {
-      // Le serveur dit précisément ce qui coince (classe occupée, enseignant déjà en cours ailleurs).
-      setError(getApiErrorMessage(requestError, 'Ce créneau chevauche un cours existant.'));
-    }
-  }
-
-  async function handleConfirmDelete() {
-    if (!toDelete) return;
-    await deleteSchedule.mutateAsync(toDelete.id);
-    setToDelete(null);
-  }
+  // Une classe (ou un enseignant) précise : la case dit l'enseignant (ou la classe) ; sinon les deux.
+  const specific = view === 'class' ? !!viewClassId : !!viewTeacherId;
+  const nothingToExport = (schedules ?? []).length === 0;
+  const conflicts = (schedules ?? []).filter((schedule) => schedule.conflict).length;
 
   /** Les exports reprennent exactement la vue affichée, jamais l'écran. */
   function exportCsv() {
@@ -133,12 +58,8 @@ export default function SchedulePage() {
     URL.revokeObjectURL(url);
   }
 
-  // Une classe (ou un enseignant) précise : la case dit l'enseignant (ou la classe) ; sinon les deux.
-  const specific = view === 'class' ? !!viewClassId : !!viewTeacherId;
-
   async function exportPdf() {
-    const rows = schedules ?? [];
-    const grid = buildTimeGrid(rows);
+    const grid = buildTimeGrid(schedules ?? []);
     await downloadTimetablePdf(
       {
         slots: grid.slots.map((slot) => `${slot.start.replace(':', 'h')} - ${slot.end.replace(':', 'h')}`),
@@ -159,9 +80,6 @@ export default function SchedulePage() {
     );
   }
 
-  const nothingToExport = (schedules ?? []).length === 0;
-  const conflicts = (schedules ?? []).filter((schedule) => schedule.conflict).length;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -170,31 +88,30 @@ export default function SchedulePage() {
           <h1 className="mt-1 font-display text-2xl font-semibold text-ink">Emploi du temps</h1>
           <p className="mt-1 text-sm text-ink-soft">Consultez le planning d’une classe ou d’un enseignant, puis exportez-le.</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={nothingToExport}
-            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50"
-          >
+        <div className="flex flex-wrap gap-2">
+          {hasPermission('teachers.manage') && (
+            <Link to="/schedule/setup" className="flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary-soft">
+              <Settings2 className="h-4 w-4" /> Affectations et créneaux
+            </Link>
+          )}
+          <button type="button" onClick={exportCsv} disabled={nothingToExport} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50">
             <Download className="h-4 w-4" /> CSV
           </button>
-          <button
-            type="button"
-            onClick={exportPdf}
-            disabled={nothingToExport}
-            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50"
-          >
+          <button type="button" onClick={exportPdf} disabled={nothingToExport} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50">
             <Printer className="h-4 w-4" /> PDF
           </button>
         </div>
       </div>
 
-      {error && <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</div>}
       {conflicts > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          {conflicts} créneau(x) en conflit (même enseignant ou même classe à la même heure), saisis avant le contrôle automatique : modifiez-les dans « Créneaux planifiés ».
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {conflicts} créneau(x) en conflit (même enseignant ou même classe à la même heure), saisis avant le contrôle automatique.
+          {hasPermission('teachers.manage') && (
+            <Link to="/schedule/setup" className="font-semibold underline">
+              Les corriger
+            </Link>
+          )}
         </div>
       )}
 
@@ -243,195 +160,6 @@ export default function SchedulePage() {
           <TimetableGrid rows={schedules ?? []} view={view} specific={specific} />
         </div>
       </section>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowConfig((open) => !open)}
-          aria-expanded={showConfig}
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper"
-        >
-          <Settings2 className="h-4 w-4" />
-          {showConfig ? 'Masquer la configuration' : 'Configurer les affectations et les créneaux'}
-        </button>
-      </div>
-
-      {showConfig && (
-        <>
-          <section className="rounded-xl border border-border bg-surface p-4">
-            <h2 className="font-display text-base font-semibold text-ink">Affectation et tarif horaire</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <SearchableSelect value={teacherId} onChange={setTeacherId} placeholder="Choisir un enseignant" options={teacherRows.map((teacher) => ({ value: teacher.id, label: teacher.full_name }))} />
-              <SearchableSelect value={classId} onChange={setClassId} placeholder="Choisir une classe" options={(classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }))} />
-              <SearchableSelect value={subjectId} onChange={setSubjectId} placeholder="Choisir une matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
-              <input type="number" min="0.01" step="0.01" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="Tarif horaire (vide = celui de la fiche)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-            </div>
-            <button type="button" onClick={addAssignment} className="mt-3 flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft">
-              <Plus className="h-4 w-4" /> Enregistrer l’affectation
-            </button>
-          </section>
-
-          <section className="rounded-xl border border-border bg-surface p-4">
-            <h2 className="font-display text-base font-semibold text-ink">Ajouter un créneau</h2>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-              <SearchableSelect value={classId} onChange={setClassId} placeholder="Classe" options={(classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }))} />
-              <SearchableSelect value={subjectId} onChange={setSubjectId} placeholder="Matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label }))} />
-              <SearchableSelect value={assignmentId} onChange={setAssignmentId} placeholder="Affectation" options={filteredAssignments.map((assignment) => ({ value: assignment.id, label: `${assignment.teacher?.full_name ?? 'Enseignant'} · ${assignment.hourly_rate} XOF/h` }))} />
-              <select value={day} onChange={(e) => setDay(Number(e.target.value))} className="rounded-lg border border-border bg-paper px-3 py-2 text-sm">
-                {DAYS.slice(0, 6).map((label, index) => (
-                  <option key={label} value={index + 1}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <input type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-              <input type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-            </div>
-            <div className="mt-3 flex gap-3">
-              <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Salle (optionnel)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
-              <button type="button" onClick={addSchedule} className="flex items-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-medium text-on-success">
-                <Plus className="h-4 w-4" /> Ajouter au planning
-              </button>
-            </div>
-            {selectedAssignment && <p className="mt-2 text-xs text-ink-soft">Tarif appliqué : {selectedAssignment.hourly_rate} XOF par heure pour cette classe.</p>}
-          </section>
-
-          <section className="overflow-hidden rounded-xl border border-border bg-surface">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="font-display text-base font-semibold text-ink">Créneaux planifiés · {selectionLabel}</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-paper text-xs text-ink-soft uppercase">
-                  <tr>
-                    <th className="px-4 py-3">Jour</th>
-                    <th className="px-4 py-3">Horaire</th>
-                    <th className="px-4 py-3">Classe</th>
-                    <th className="px-4 py-3">Matière</th>
-                    <th className="px-4 py-3">Enseignant</th>
-                    <th className="px-4 py-3">Salle</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {pageRows.map((schedule) => (
-                    <tr key={schedule.id}>
-                      <td className="px-4 py-3">{DAYS[schedule.day_of_week - 1]}</td>
-                      <td className="font-tabular px-4 py-3">{timeRange(schedule)}</td>
-                      <td className="px-4 py-3">{schedule.school_class?.label ?? '—'}</td>
-                      <td className="px-4 py-3">{schedule.subject?.label ?? '—'}</td>
-                      <td className="px-4 py-3">{schedule.assignment?.teacher?.full_name ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        {schedule.room ?? '—'}
-                        {schedule.conflict && (
-                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold text-danger" title={schedule.conflict}>
-                            <AlertTriangle className="h-3 w-3" /> Conflit
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <button type="button" onClick={() => setToEdit(schedule)} className={editIconClass} aria-label="Modifier le créneau" title="Modifier">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button type="button" onClick={() => setToDelete(schedule)} className={deleteIconClass} aria-label="Désactiver le créneau">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {(schedules ?? []).length === 0 && <p className="px-4 py-8 text-center text-sm text-ink-soft">Aucun créneau pour cette sélection.</p>}
-            <Pagination {...pagination} onPageChange={pagination.setPage} />
-          </section>
-        </>
-      )}
-
-      {toEdit && <EditSlotModal slot={toEdit} assignments={assignments ?? []} onClose={() => setToEdit(null)} />}
-
-      <ConfirmDialog
-        open={toDelete !== null}
-        title="Désactiver ce créneau ?"
-        message={toDelete ? `Le créneau du ${DAYS[toDelete.day_of_week - 1]} ${timeRange(toDelete)} sera retiré de l’emploi du temps.` : ''}
-        confirmLabel="Désactiver"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setToDelete(null)}
-      />
     </div>
-  );
-}
-
-/** Déplacer un créneau (jour, horaire, salle) ou changer d'enseignant ; le serveur refuse tout chevauchement. */
-function EditSlotModal({ slot, assignments, onClose }: { slot: ScheduleRow; assignments: AssignmentRow[]; onClose: () => void }) {
-  const update = useUpdateSchedule();
-  const [day, setDay] = useState(slot.day_of_week);
-  const [startsAt, setStartsAt] = useState(hhmm(slot.starts_at));
-  const [endsAt, setEndsAt] = useState(hhmm(slot.ends_at));
-  const [room, setRoom] = useState(slot.room ?? '');
-  const [assignmentId, setAssignmentId] = useState(slot.teacher_assignment_id);
-  const [error, setError] = useState<string | null>(null);
-  const choices = assignments.filter((a) => a.class_id === slot.class_id && a.subject_id === slot.subject_id);
-  const field = 'w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink';
-
-  async function save() {
-    setError(null);
-    try {
-      await update.mutateAsync({ id: slot.id, payload: { day_of_week: day, starts_at: startsAt, ends_at: endsAt, room: room || null, teacher_assignment_id: assignmentId } });
-      onClose();
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Impossible de modifier ce créneau.'));
-    }
-  }
-
-  return (
-    <Modal title={`Modifier le créneau · ${slot.school_class?.label ?? ''} · ${slot.subject?.label ?? ''}`} onClose={onClose}>
-      <div className="space-y-3">
-        {slot.conflict && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{slot.conflict}</p>}
-        {error && <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-ink">Enseignant</span>
-          <select value={assignmentId} onChange={(e) => setAssignmentId(Number(e.target.value))} className={field}>
-            {choices.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.teacher?.full_name ?? 'Enseignant'}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-ink">Jour</span>
-            <select value={day} onChange={(e) => setDay(Number(e.target.value))} className={field}>
-              {DAYS.slice(0, 6).map((label, index) => (
-                <option key={label} value={index + 1}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-ink">Début</span>
-            <input type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={field} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-ink">Fin</span>
-            <input type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className={field} />
-          </label>
-        </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-ink">Salle (optionnel)</span>
-          <input value={room} onChange={(e) => setRoom(e.target.value)} className={field} />
-        </label>
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
-            Annuler
-          </button>
-          <button type="button" onClick={save} disabled={update.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60">
-            {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-        </div>
-      </div>
-    </Modal>
   );
 }

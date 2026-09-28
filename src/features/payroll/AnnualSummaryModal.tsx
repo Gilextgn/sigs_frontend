@@ -35,8 +35,9 @@ export function AnnualSummaryModal({ onClose }: { onClose: () => void }) {
   const month = (period: string) => new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(`${period}-01T00:00:00`));
 
   return (
-    <Modal title="Récapitulatif annuel d'un enseignant" onClose={onClose} widthClassName="max-w-2xl">
-      <div className="space-y-4">
+    <Modal title="Récapitulatif annuel d'un enseignant" onClose={onClose} widthClassName="max-w-3xl">
+      {/* Hauteur minimale : la liste déroulante des enseignants ne doit pas être rognée par la fenêtre. */}
+      <div className="min-h-[26rem] space-y-4">
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <SearchableSelect
             value={teacherId}

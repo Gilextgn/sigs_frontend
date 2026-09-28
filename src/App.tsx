@@ -33,6 +33,7 @@ const LandingPage = lazyPage(() => import('@/features/landing/LandingPage'));
 const RentreePage = lazyPage(() => import('@/features/rentree/RentreePage'));
 const YearClosingPage = lazyPage(() => import('@/features/settings/YearClosingPage'));
 const SchedulePage = lazyPage(() => import('@/features/teachers/SchedulePage'));
+const ScheduleSetupPage = lazyPage(() => import('@/features/teachers/ScheduleSetupPage'));
 const AttendancePage = lazyPage(() => import('@/features/teachers/AttendancePage'));
 const SubjectsPage = lazyPage(() => import('@/features/teachers/SubjectsPage'));
 const VerifyReceiptPage = lazyPage(() => import('@/features/payments/VerifyReceiptPage'));
@@ -118,6 +119,7 @@ function AppRoutes() {
               <Route path="/debtors" element={<DebtorsPage />} />
               <Route path="/teachers" element={<TeachersPage />} />
               <Route path="/schedule" element={<SchedulePage />} />
+              <Route path="/schedule/setup" element={<ScheduleSetupPage />} />
               <Route path="/attendance" element={<AttendancePage />} />
               <Route path="/subjects" element={<SubjectsPage />} />
               <Route path="/payroll" element={<PayrollPage />} />

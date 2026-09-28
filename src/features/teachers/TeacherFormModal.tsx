@@ -16,12 +16,13 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
     full_name: editing?.full_name ?? '',
     phone: editing?.phone ?? '',
     subject: editing?.subject ?? '',
-    pay_mode: editing?.pay_mode ?? 'hourly',
+    level: editing?.level ?? (editing?.pay_mode === 'monthly' ? 'primary' : 'secondary'),
     monthly_salary: editing?.monthly_salary ?? '',
     hourly_rate: editing?.hourly_rate ?? '',
     status: editing?.status ?? 'active',
   });
-  const paidHourly = form.pay_mode === 'hourly';
+  // Collège : payé à l'heure ; primaire : salaire mensuel fixe.
+  const paidHourly = form.level === 'secondary';
   const [error, setError] = useState<string | null>(null);
   const isSaving = createTeacher.isPending || updateTeacher.isPending;
 
@@ -33,7 +34,7 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
       full_name: form.full_name,
       phone: form.phone || undefined,
       subject: form.subject || undefined,
-      pay_mode: form.pay_mode as 'hourly' | 'monthly',
+      level: form.level as 'primary' | 'secondary',
       // À l'heure, la paie sort des présences : aucun salaire fixe à saisir.
       monthly_salary: paidHourly ? undefined : Number(form.monthly_salary || 0),
       // À l'heure : tarif de la fiche, repris par ses affectations.
@@ -96,21 +97,21 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
           </Field>
         </div>
 
-        <Field label="Rémunération">
+        <Field label="Niveau d'enseignement">
           <div className="grid gap-2 sm:grid-cols-2">
             {(
               [
-                ['hourly', 'À l’heure', 'Calculée chaque mois d’après les heures faites (présences).'],
-                ['monthly', 'Salaire fixe', 'Montant mensuel identique, saisi ci-dessous.'],
-              ] as ['hourly' | 'monthly', string, string][]
-            ).map(([mode, label, hint]) => (
+                ['primary', 'Primaire', 'Salaire mensuel fixe. Enseigne généralement toutes les matières de sa classe.'],
+                ['secondary', 'Collège', 'Payé à l’heure, d’après les heures faites (présences).'],
+              ] as ['primary' | 'secondary', string, string][]
+            ).map(([level, label, hint]) => (
               <button
-                key={mode}
+                key={level}
                 type="button"
-                onClick={() => setForm((f) => ({ ...f, pay_mode: mode }))}
-                aria-pressed={form.pay_mode === mode}
+                onClick={() => setForm((f) => ({ ...f, level }))}
+                aria-pressed={form.level === level}
                 className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                  form.pay_mode === mode ? 'border-primary bg-primary-soft/50 ring-2 ring-primary/15' : 'border-border hover:border-primary/40'
+                  form.level === level ? 'border-primary bg-primary-soft/50 ring-2 ring-primary/15' : 'border-border hover:border-primary/40'
                 }`}
               >
                 <span className="block text-sm font-medium text-ink">{label}</span>

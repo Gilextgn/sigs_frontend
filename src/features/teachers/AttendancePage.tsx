@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, ClipboardCheck, RefreshCcw, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCcw, X } from 'lucide-react';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { useCreateAttendance, useGenerateSessions, useSessions } from './useTeaching';
-import { useTeachers } from './useTeachers';
 import { hhmm } from './timetable';
 
 const statusOptions = [
@@ -10,7 +9,6 @@ const statusOptions = [
   { value: 'late', label: 'En retard' },
   { value: 'absent', label: 'Absent' },
   { value: 'justified', label: 'Absent justifié' },
-  { value: 'replaced', label: 'Remplacé' },
 ] as const;
 
 function NoticeBanner({
@@ -41,8 +39,6 @@ export default function AttendancePage() {
   const [statuses, setStatuses] = useState<Record<number, string>>({});
   const [absenceMinutes, setAbsenceMinutes] = useState<Record<number, number>>({});
   const [reasons, setReasons] = useState<Record<number, string>>({});
-  const [replacements, setReplacements] = useState<Record<number, number>>({});
-  const { data: teachers } = useTeachers('active');
   // Séances déjà enregistrées (bouton "Enregistrer" -> statut "Enregistré").
   // Toute nouvelle modification locale d'une séance déjà enregistrée la
   // retire de cet ensemble pour redonner accès au bouton d'enregistrement.
@@ -61,7 +57,6 @@ export default function AttendancePage() {
     setStatuses({});
     setAbsenceMinutes({});
     setReasons({});
-    setReplacements({});
   }, [sessions]);
 
   function markDirty(sessionId: number) {
@@ -94,7 +89,6 @@ export default function AttendancePage() {
     const status = statuses[sessionId] ?? session.attendance?.status ?? 'present';
     const minutes = Math.max(0, Number(absenceMinutes[sessionId] ?? session.attendance?.absence_minutes ?? 0));
     const reason = reasons[sessionId] ?? session.attendance?.reason ?? '';
-    const replacementId = replacements[sessionId] ?? session.attendance?.replacement_teacher_id ?? null;
 
     if (status === 'late' && minutes <= 0) {
       setNotice({ type: 'error', message: 'Indiquez le nombre de minutes de retard.' });
@@ -102,10 +96,6 @@ export default function AttendancePage() {
     }
     if (status === 'justified' && reason.trim().length === 0) {
       setNotice({ type: 'error', message: 'Indiquez le motif de l’absence justifiée.' });
-      return;
-    }
-    if (status === 'replaced' && !replacementId) {
-      setNotice({ type: 'error', message: 'Choisissez l’enseignant qui a assuré le cours.' });
       return;
     }
 
@@ -116,7 +106,6 @@ export default function AttendancePage() {
         status,
         absence_minutes: status === 'late' ? minutes : 0,
         reason: reason.trim() || undefined,
-        replacement_teacher_id: status === 'replaced' ? replacementId ?? undefined : undefined,
       });
       setSavedIds((current) => new Set(current).add(sessionId));
       setNotice({ type: 'success', message: 'Présence enregistrée avec succès.' });
@@ -131,7 +120,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div><p className="text-xs font-medium tracking-wide text-primary uppercase">Suivi des cours</p><h1 className="mt-1 font-display text-2xl font-semibold text-ink">Présence des enseignants</h1><p className="mt-1 text-sm text-ink-soft">Un statut par séance. Retard : les minutes sont déduites de la paie. Remplacé : c’est le remplaçant qui est payé.</p></div>
+        <div><p className="text-xs font-medium tracking-wide text-primary uppercase">Suivi des cours</p><h1 className="mt-1 font-display text-2xl font-semibold text-ink">Présence des enseignants</h1><p className="mt-1 text-sm text-ink-soft">Un statut par séance. Retard : les minutes sont déduites de la paie. Absent justifié : le motif est obligatoire.</p></div>
         <div className="flex items-center gap-2">
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink" />
           <button type="button" onClick={generateForSelectedDate} disabled={generateSessions.isPending} className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/5 px-3 py-2 text-xs font-medium text-primary disabled:opacity-50">
@@ -160,7 +149,14 @@ export default function AttendancePage() {
                   <td className="font-tabular px-4 py-3">{hhmm(session.starts_at)} - {hhmm(session.ends_at)}</td>
                   <td className="px-4 py-3">{session.school_class?.label ?? '—'}</td>
                   <td className="px-4 py-3">{session.assignment?.subject?.label ?? '—'}</td>
-                  <td className="px-4 py-3 font-medium">{session.assignment?.teacher?.full_name ?? '—'}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {session.assignment?.teacher?.full_name ?? '—'}
+                    {session.conflict && (
+                      <span className="mt-1 flex max-w-[220px] items-start gap-1 text-[11px] font-medium text-danger" title={session.conflict}>
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> Conflit : même heure dans une autre classe
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2">
@@ -206,26 +202,6 @@ export default function AttendancePage() {
                               />
                               <span>déduites de la paie</span>
                             </label>
-                          )}
-                          {selectedStatus === 'replaced' && (
-                            <select
-                              disabled={isSaved}
-                              value={replacements[session.id] ?? session.attendance?.replacement_teacher_id ?? ''}
-                              onChange={(event) => {
-                                setReplacements((current) => ({ ...current, [session.id]: Number(event.target.value) }));
-                                markDirty(session.id);
-                              }}
-                              className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-ink disabled:opacity-60"
-                            >
-                              <option value="">Qui a assuré le cours ? (il sera payé)</option>
-                              {(teachers?.data ?? [])
-                                .filter((teacher) => teacher.id !== teacherId)
-                                .map((teacher) => (
-                                  <option key={teacher.id} value={teacher.id}>
-                                    {teacher.full_name}
-                                  </option>
-                                ))}
-                            </select>
                           )}
                           <input
                             type="text"

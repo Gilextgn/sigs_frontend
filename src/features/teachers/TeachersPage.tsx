@@ -84,11 +84,12 @@ export default function TeachersPage() {
                 <td className="px-4 py-3 text-ink-soft">{teacher.subject ?? '—'}</td>
                 <td className="font-tabular px-4 py-3 text-ink-soft">{teacher.phone ?? '—'}</td>
                 <td className="font-tabular px-4 py-3 text-right text-ink">
-                  {teacher.pay_mode === 'monthly' && teacher.monthly_salary ? (
-                    `${currency.format(Number(teacher.monthly_salary))} XOF`
-                  ) : (
-                    <span className="text-xs text-ink-soft">À l’heure</span>
-                  )}
+                  {teacher.pay_mode === 'monthly' && teacher.monthly_salary
+                    ? `${currency.format(Number(teacher.monthly_salary))} XOF / mois`
+                    : teacher.hourly_rate
+                      ? `${currency.format(Number(teacher.hourly_rate))} XOF / h`
+                      : '—'}
+                  <span className="block text-xs text-ink-soft">{teacher.level === 'primary' ? 'Primaire' : 'Collège'}</span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${teacher.status === 'active' ? 'bg-success-soft text-success' : 'bg-paper text-ink-soft'}`}>

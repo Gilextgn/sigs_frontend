@@ -19,7 +19,9 @@ import { useTheme } from '@/shared/lib/ThemeContext';
 import { useActiveYear, useTopDebtors } from '@/features/dashboard/useDashboardData';
 import { usePaymentDesk } from '@/features/payments/PaymentDesk';
 import { GlobalSearch } from './GlobalSearch';
-import { formatNumber } from '@/shared/lib/format';
+import { NotificationToasts } from './NotificationToasts';
+import { formatNumber, timeAgo } from '@/shared/lib/format';
+import { useAdminNotifications, useMarkNotificationRead } from '@/shared/hooks/useAdminNotifications';
 import { ConfirmDialog } from './ConfirmDialog';
 import { findBreadcrumbTrail } from './navItems';
 
@@ -55,6 +57,13 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
   const { data: debtors } = useTopDebtors(hasPermission('dashboard.view'));
   const notifItems = debtors?.items ?? [];
   const debtorsCount = debtors?.debtors_count ?? 0;
+  // Notifications de caisse (adressées aux administrateurs) : onglet « Activité ».
+  const { data: notifications } = useAdminNotifications(hasPermission('audit.view') || hasPermission('users.manage'));
+  const markRead = useMarkNotificationRead();
+  const activity = notifications?.data ?? [];
+  const unread = notifications?.unread_count ?? 0;
+  const showActivity = hasPermission('audit.view') || hasPermission('users.manage') || activity.length > 0;
+  const [notifTab, setNotifTab] = useState<'activity' | 'debtors'>('activity');
 
   const notifRef = useClickOutside(() => setNotifOpen(false));
   const profileRef = useClickOutside(() => setProfileOpen(false));
@@ -69,6 +78,17 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
   return (
     <>
+      {showActivity && (
+        <NotificationToasts
+          notifications={notifications?.data}
+          unread={unread}
+          onOpen={(id) => {
+            if (id) markRead.mutate(id);
+            setNotifTab('activity');
+            setNotifOpen(true);
+          }}
+        />
+      )}
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-4 shadow-sm sm:px-5">
         {/* Gauche : hamburger + fil d'Ariane */}
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -151,57 +171,116 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
               className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-paper hover:text-primary"
             >
               <Bell className="h-[17px] w-[17px]" />
-              {debtorsCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-surface bg-danger px-0.5 text-[9px] font-bold text-on-danger">
-                  {debtorsCount > 99 ? '99+' : debtorsCount}
+              {/* Pastille : actions de caisse non lues en priorité, sinon familles en retard. */}
+              {(showActivity ? unread : debtorsCount) > 0 && (
+                <span className={`absolute top-0.5 right-0.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-surface px-0.5 text-[9px] font-bold ${showActivity ? 'bg-primary text-on-primary' : 'bg-danger text-on-danger'}`}>
+                  {Math.min(showActivity ? unread : debtorsCount, 99)}
                 </span>
               )}
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-80 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
-                <div className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
-                  <span className="text-[13px] font-bold text-ink">Plus gros restes à payer</span>
-                  {debtors && (
-                    <span className="text-[11px] text-ink-soft">
-                      {debtorsCount} famille{debtorsCount > 1 ? 's' : ''} en retard
-                    </span>
-                  )}
-                </div>
-                {notifItems.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-[13px] text-ink-soft">Aucune alerte pour le moment.</p>
-                ) : (
-                  <ul className="max-h-80 space-y-0.5 overflow-y-auto p-1.5">
-                    {notifItems.map((debtor) => (
-                      <li key={debtor.student_id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNotifOpen(false);
-                            openStudent(debtor.student_id);
-                          }}
-                          className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-paper"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-semibold text-ink">{debtor.full_name}</span>
-                            <span className="block truncate text-xs text-ink-soft">{debtor.class ?? '—'}</span>
-                          </span>
-                          <span className="font-tabular shrink-0 font-semibold text-danger">
-                            {formatNumber(debtor.outstanding_amount)}
-                          </span>
-                        </button>
-                      </li>
+              <div className="absolute right-0 top-[calc(100%+10px)] z-40 w-96 max-w-[calc(100vw-32px)] origin-top-right overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl animate-[dropdown-in_0.15s_ease-out]">
+                {showActivity && (
+                  <div className="flex border-b border-border text-[13px] font-semibold">
+                    {(
+                      [
+                        ['activity', `Activité${unread > 0 ? ` (${unread})` : ''}`],
+                        ['debtors', 'Débiteurs'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setNotifTab(key)}
+                        className={`flex-1 px-4 py-2.5 transition ${notifTab === key ? 'border-b-2 border-primary text-ink' : 'text-ink-soft hover:text-ink'}`}
+                      >
+                        {label}
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 )}
-                {debtorsCount > notifItems.length && (
-                  <Link
-                    to="/debtors"
-                    onClick={() => setNotifOpen(false)}
-                    className="block border-t border-border px-4 py-2.5 text-center text-xs font-semibold text-primary no-underline hover:bg-paper"
-                  >
-                    Voir les {debtorsCount} débiteurs
-                  </Link>
+
+                {showActivity && notifTab === 'activity' ? (
+                  <>
+                    {activity.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-[13px] text-ink-soft">Aucune action de caisse à signaler.</p>
+                    ) : (
+                      <ul className="max-h-96 divide-y divide-border overflow-y-auto">
+                        {activity.map((item) => (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              onClick={() => !item.read_at && markRead.mutate(item.id)}
+                              className={`flex w-full gap-2.5 px-4 py-2.5 text-left text-[13px] transition hover:bg-paper ${item.read_at ? '' : 'bg-primary-soft/30'}`}
+                            >
+                              <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.read_at ? 'bg-transparent' : 'bg-primary'}`} />
+                              <span className="min-w-0">
+                                <span className="block font-semibold text-ink">{item.title}</span>
+                                {item.body && <span className="block text-xs text-ink-soft">{item.body}</span>}
+                                <span className="block text-[11px] text-ink-muted">{timeAgo(item.created_at)}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {unread > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => markRead.mutate('all')}
+                        className="block w-full border-t border-border px-4 py-2.5 text-center text-xs font-semibold text-primary hover:bg-paper"
+                      >
+                        Tout marquer comme lu
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
+                      <span className="text-[13px] font-bold text-ink">Plus gros restes à payer</span>
+                      {debtors && (
+                        <span className="text-[11px] text-ink-soft">
+                          {debtorsCount} famille{debtorsCount > 1 ? 's' : ''} en retard
+                        </span>
+                      )}
+                    </div>
+                    {notifItems.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-[13px] text-ink-soft">Aucune alerte pour le moment.</p>
+                    ) : (
+                      <ul className="max-h-80 space-y-0.5 overflow-y-auto p-1.5">
+                        {notifItems.map((debtor) => (
+                          <li key={debtor.student_id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNotifOpen(false);
+                                openStudent(debtor.student_id);
+                              }}
+                              className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-paper"
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate font-semibold text-ink">{debtor.full_name}</span>
+                                <span className="block truncate text-xs text-ink-soft">{debtor.class ?? '—'}</span>
+                              </span>
+                              <span className="font-tabular shrink-0 font-semibold text-danger">
+                                {formatNumber(debtor.outstanding_amount)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {debtorsCount > notifItems.length && (
+                      <Link
+                        to="/debtors"
+                        onClick={() => setNotifOpen(false)}
+                        className="block border-t border-border px-4 py-2.5 text-center text-xs font-semibold text-primary no-underline hover:bg-paper"
+                      >
+                        Voir les {debtorsCount} débiteurs
+                      </Link>
+                    )}
+                  </>
                 )}
               </div>
             )}

@@ -10,6 +10,8 @@ export interface TeacherRow {
   pay_mode: 'hourly' | 'monthly';
   monthly_salary: string | null;
   hourly_rate: string | null;
+  /** primary : salaire mensuel fixe ; secondary (collège) : payé à l'heure. */
+  level: 'primary' | 'secondary';
   status: 'active' | 'inactive';
 }
 
@@ -20,6 +22,7 @@ export interface TeacherPayload {
   pay_mode?: 'hourly' | 'monthly';
   monthly_salary?: number;
   hourly_rate?: number;
+  level?: 'primary' | 'secondary';
   status?: 'active' | 'inactive';
 }
 

@@ -39,6 +39,8 @@ export interface SessionRow {
   school_class?: { label: string };
   assignment?: { teacher?: { id: number; full_name: string }; subject?: { label: string } };
   attendance?: { status: string; absence_minutes: number; reason: string | null; replacement_teacher_id: number | null } | null;
+  /** Même enseignant dans une autre classe à la même heure (emploi du temps à corriger). */
+  conflict?: string | null;
 }
 
 export function useSubjects(search?: string) {
@@ -70,7 +72,7 @@ export function useDeleteSubject() {
 }
 export function useCreateAssignment() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: async (payload: { teacher_id: number; class_id: number; subject_id: number; hourly_rate?: number; weekly_hours?: number }) => (await apiClient.post('/teacher-assignments', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] }) });
+  return useMutation({ mutationFn: async (payload: { teacher_id: number; class_id: number; subject_id?: number; subject_ids?: number[]; hourly_rate?: number; weekly_hours?: number }) => (await apiClient.post('/teacher-assignments', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] }) });
 }
 export function useCreateSchedule() {
   const queryClient = useQueryClient();
