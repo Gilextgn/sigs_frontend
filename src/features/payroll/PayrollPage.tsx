@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Banknote, CheckCircle2, Eye, Plus } from 'lucide-react';
+import { Banknote, CheckCircle2, Eye, FileText, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
@@ -7,12 +7,14 @@ import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useMarkPayrollPaid, usePayrollEntries, type PayrollEntryRow } from './usePayroll';
 import { PayrollFormModal } from './PayrollFormModal';
 import { PayrollDetailModal } from './PayrollDetailModal';
+import { AnnualSummaryModal } from './AnnualSummaryModal';
 import { currency } from '@/shared/lib/format';
 
 
 export default function PayrollPage() {
   const [period, setPeriod] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [detailEntryId, setDetailEntryId] = useState<number | null>(null);
   const [toMarkPaid, setToMarkPaid] = useState<PayrollEntryRow | null>(null);
 
@@ -35,10 +37,16 @@ export default function PayrollPage() {
           onChange={(e) => setPeriod(e.target.value)}
           className="w-full max-w-[200px] rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
+        <div className="flex gap-2">
+        <button onClick={() => setSummaryOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
+          <FileText className="h-4 w-4" />
+          Récapitulatif annuel
+        </button>
         <button onClick={() => setModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
           <Plus className="h-4 w-4" />
           Nouvelle fiche
         </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
@@ -107,6 +115,7 @@ export default function PayrollPage() {
         <Pagination {...pagination} onPageChange={pagination.setPage} />
       </div>
 
+      {summaryOpen && <AnnualSummaryModal onClose={() => setSummaryOpen(false)} />}
       {modalOpen && <PayrollFormModal onClose={() => setModalOpen(false)} />}
       {detailEntryId && <PayrollDetailModal payrollId={detailEntryId} onClose={() => setDetailEntryId(null)} />}
 

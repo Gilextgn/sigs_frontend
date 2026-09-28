@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Download, Eye, Plus, Receipt, Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Eye, Plus, Receipt, Trash2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { Modal } from '@/shared/components/Modal';
@@ -30,7 +30,28 @@ export default function PaymentsPage() {
   const { data, isLoading } = usePayments();
   const { data: settings } = useSchoolSettings();
   const deletePayment = useDeletePayment();
-  const { pageRows, ...pagination } = usePaginatedRows(data?.data);
+  // Une ligne par élève (le plus récent en tête) : son nom ne se répète plus à chaque versement.
+  const groups = useMemo(() => {
+    const byStudent = new Map<string, PaymentRow[]>();
+    for (const payment of data?.data ?? []) {
+      const key = String(payment.student?.id ?? `p-${payment.id}`);
+      byStudent.set(key, [...(byStudent.get(key) ?? []), payment]);
+    }
+    return [...byStudent.entries()].map(([key, payments]) => ({
+      key,
+      payments,
+      total: payments.reduce((sum, payment) => sum + Number(payment.total_paid_amount), 0),
+    }));
+  }, [data]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const { pageRows, ...pagination } = usePaginatedRows(groups);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,93 +94,94 @@ export default function PaymentsPage() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] text-left text-sm">
+        <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
             <tr>
-              <th className="px-4 py-3">Référence</th>
               <th className="px-4 py-3">Élève</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Lignes</th>
-              <th className="px-4 py-3">Caissier</th>
-              <th className="px-4 py-3 text-right">Montant</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3">Versements</th>
+              <th className="px-4 py-3">Dernier paiement</th>
+              <th className="px-4 py-3 text-right">Total versé</th>
+              <th className="w-12 px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <SkeletonTableRows columns={7} />}
-            {!isLoading && (data?.data.length ?? 0) === 0 && (
+            {isLoading && <SkeletonTableRows columns={5} />}
+            {!isLoading && groups.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-14 text-center">
+                <td colSpan={5} className="px-4 py-14 text-center">
                   <Receipt className="mx-auto h-8 w-8 text-ink-soft" />
                   <p className="mt-2 text-sm text-ink-soft">Aucun paiement enregistré pour le moment.</p>
                 </td>
               </tr>
             )}
-            {pageRows.map((payment) => (
-              <tr key={payment.id} className="transition hover:bg-paper">
-                <td className="font-tabular px-4 py-3 whitespace-nowrap text-ink-soft">{payment.reference_code}</td>
-                <td className="px-4 py-3">
-                  {payment.student ? (
-                    <button
-                      type="button"
-                      onClick={() => openStudent(payment.student!.id)}
-                      className="text-left font-medium text-ink transition hover:text-primary"
-                    >
-                      {payment.student.first_name} {payment.student.last_name}
-                      <span className="block text-xs font-normal text-ink-soft">{payment.student.school_class?.label ?? ''}</span>
-                    </button>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className="font-tabular px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(payment.payment_date)}</td>
-                <td className="px-4 py-3">
-                  <span className="block max-w-[220px] truncate text-ink-soft" title={payment.items.map((item) => item.label).join(', ')}>
-                    {payment.items.map((item) => item.label).join(', ')}
-                  </span>
-                  {payment.is_partial && (
-                    <span className="mt-0.5 inline-block rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-semibold text-gold">
-                      Acompte · reste {currency.format(payment.items.reduce((sum, item) => sum + Number(item.remaining_after), 0))}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-ink-soft">{payment.cashier?.full_name ?? '—'}</td>
-                <td className="font-tabular px-4 py-3 text-right font-medium whitespace-nowrap text-success">
-                  +{currency.format(Number(payment.total_paid_amount))} XOF
-                </td>
-                <td className="px-4 py-3">
-                  {/* Actions alignées sur une seule ligne, jamais empilées */}
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => setDetailId(payment.id)}
-                      className={viewIconClass}
-                      aria-label="Voir le détail"
-                      title="Voir le détail"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDownload(payment)}
-                      className={downloadIconClass}
-                      aria-label="Télécharger le reçu"
-                      title="Télécharger le reçu (PDF)"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                    {hasPermission('payments.delete') && (
-                      <button
-                        onClick={() => setToDelete(payment)}
-                        className={deleteIconClass}
-                        aria-label="Supprimer"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {pageRows.map((group) => {
+              const open = expanded.has(group.key);
+              const last = group.payments[0];
+              return (
+                <Fragment key={group.key}>
+                  <tr className="cursor-pointer transition hover:bg-paper" onClick={() => toggle(group.key)}>
+                    <td className="px-4 py-3">
+                      {last.student ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openStudent(last.student!.id);
+                          }}
+                          className="text-left font-medium text-ink transition hover:text-primary"
+                        >
+                          {last.student.first_name} {last.student.last_name}
+                          <span className="block text-xs font-normal text-ink-soft">{last.student.school_class?.label ?? ''}</span>
+                        </button>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-ink-soft">{group.payments.length} paiement(s)</td>
+                    <td className="font-tabular px-4 py-3 whitespace-nowrap text-ink-soft">{formatDate(last.payment_date)}</td>
+                    <td className="font-tabular px-4 py-3 text-right font-medium whitespace-nowrap text-success">+{currency.format(group.total)} XOF</td>
+                    <td className="px-4 py-3 text-right text-ink-soft">
+                      <ChevronDown className={`inline h-4 w-4 transition ${open ? 'rotate-180' : ''}`} />
+                    </td>
+                  </tr>
+                  {open &&
+                    group.payments.map((payment) => (
+                      <tr key={payment.id} className="bg-paper/60">
+                        <td className="font-tabular py-2.5 pr-4 pl-8 text-xs whitespace-nowrap text-ink-soft">{payment.reference_code}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="block max-w-[260px] truncate text-ink-soft" title={payment.items.map((item) => item.label).join(', ')}>
+                            {payment.items.map((item) => item.label).join(', ')}
+                          </span>
+                          {payment.is_partial && (
+                            <span className="mt-0.5 inline-block rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-semibold text-gold">
+                              Acompte · reste {currency.format(payment.items.reduce((sum, item) => sum + Number(item.remaining_after), 0))}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs whitespace-nowrap text-ink-soft">
+                          {formatDate(payment.payment_date)} · {payment.cashier?.full_name ?? '—'}
+                        </td>
+                        <td className="font-tabular px-4 py-2.5 text-right whitespace-nowrap text-ink">{currency.format(Number(payment.total_paid_amount))} XOF</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => setDetailId(payment.id)} className={viewIconClass} aria-label="Voir le détail" title="Voir le détail">
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => handleDownload(payment)} className={downloadIconClass} aria-label="Télécharger le reçu" title="Télécharger le reçu (PDF)">
+                              <Download className="h-4 w-4" />
+                            </button>
+                            {hasPermission('payments.delete') && (
+                              <button onClick={() => setToDelete(payment)} className={deleteIconClass} aria-label="Supprimer" title="Supprimer">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
         </div>

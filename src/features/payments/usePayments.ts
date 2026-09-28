@@ -72,7 +72,7 @@ export function usePayments(studentId?: number | '') {
   return useQuery({
     queryKey: ['payments', studentId],
     queryFn: async () =>
-      (await apiClient.get<PaginatedPayments>('/payments', { params: { student_id: studentId || undefined } })).data,
+      (await apiClient.get<PaginatedPayments>('/payments', { params: { student_id: studentId || undefined, per_page: 1000 } })).data,
   });
 }
 

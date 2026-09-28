@@ -61,21 +61,6 @@ export function useUpdateClass() {
   });
 }
 
-/** Ordre pédagogique : on envoie la liste complète des classes dans le nouvel ordre. */
-export function useReorderClasses() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (ids: number[]) => (await apiClient.put<SchoolClassRow[]>('/classes/reorder', { ids })).data,
-    // Affichage immédiat : la flèche ne doit pas attendre le serveur.
-    onMutate: (ids) => {
-      queryClient.setQueryData<SchoolClassRow[]>(['classes', ''], (rows) =>
-        rows ? ids.map((id) => rows.find((row) => row.id === id)).filter((row): row is SchoolClassRow => !!row) : rows,
-      );
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['classes'] }),
-  });
-}
-
 export function useDeleteClass() {
   const queryClient = useQueryClient();
   return useMutation({

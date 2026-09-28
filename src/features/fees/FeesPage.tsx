@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { Pagination } from '@/shared/components/Pagination';
 import { SkeletonBlock } from '@/shared/components/Skeleton';
 import { editIconClass, deleteIconClass } from '@/shared/components/actionStyles';
@@ -20,18 +21,31 @@ export default function FeesPage() {
     editing: null,
   });
   const [toDelete, setToDelete] = useState<FeeTypeRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data, isLoading, isError } = useFeeTypes(search);
   const deleteFeeType = useDeleteFeeType();
   const { pageRows, ...pagination } = usePaginatedRows(data);
 
   async function handleConfirmDelete() {
     if (!toDelete) return;
-    await deleteFeeType.mutateAsync(toDelete.id);
+    setDeleteError(null);
+    try {
+      await deleteFeeType.mutateAsync(toDelete.id);
+    } catch (requestError) {
+      // Ex. frais déjà encaissé : le serveur explique pourquoi et quoi faire.
+      setDeleteError(getApiErrorMessage(requestError, 'Impossible de supprimer ce frais.'));
+    }
     setToDelete(null);
   }
 
   return (
     <div className="space-y-4">
+      {deleteError && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+          <p>{deleteError}</p>
+          <button type="button" onClick={() => setDeleteError(null)} className="text-xs font-medium underline">Fermer</button>
+        </div>
+      )}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft" />

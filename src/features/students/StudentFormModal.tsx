@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 import axios from 'axios';
 import { Modal } from '@/shared/components/Modal';
-import { Field, inputClass } from '@/shared/components/Field';
+import { Field, digitsOnly, inputClass, phoneInputProps } from '@/shared/components/Field';
 import { ClassPicker } from '@/shared/components/ClassPicker';
 import { useCreateStudent, useUpdateStudent, type StudentRow } from './useStudents';
 
@@ -25,9 +25,9 @@ function ReceiptContactFields<T extends ContactForm>({ form, setForm }: { form: 
         <Field label="WhatsApp (optionnel)">
           <input
             type="tel"
-            placeholder="01 91 00 00 00"
             value={form.guardian_whatsapp}
-            onChange={(e) => setForm((f) => ({ ...f, guardian_whatsapp: e.target.value }))}
+            {...phoneInputProps}
+            onChange={(e) => setForm((f) => ({ ...f, guardian_whatsapp: digitsOnly(e.target.value) }))}
             className={inputClass}
           />
         </Field>
@@ -200,7 +200,7 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Téléphone">
-                <input required value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: e.target.value }))} className={inputClass} />
+                <input required {...phoneInputProps} value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: digitsOnly(e.target.value) }))} className={inputClass} />
               </Field>
               <Field label="Adresse (optionnel)">
                 <input value={form.guardian_address} onChange={(e) => setForm((f) => ({ ...f, guardian_address: e.target.value }))} className={inputClass} />
@@ -215,7 +215,7 @@ export function StudentFormModal({ editing, onClose }: { editing?: StudentRow | 
             <p className="mb-1 text-sm font-semibold text-ink">Contacts du parent · {editing.guardian.full_name}</p>
             <p className="mb-3 text-xs text-ink-soft">Partagés avec ses autres enfants inscrits.</p>
             <Field label="Téléphone">
-              <input required value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: e.target.value }))} className={inputClass} />
+              <input required {...phoneInputProps} value={form.guardian_phone} onChange={(e) => setForm((f) => ({ ...f, guardian_phone: digitsOnly(e.target.value) }))} className={inputClass} />
             </Field>
             <ReceiptContactFields form={form} setForm={setForm} />
           </div>

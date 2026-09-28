@@ -4,6 +4,8 @@ import { Field, inputClass } from '@/shared/components/Field';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { useCreateTeacher, useUpdateTeacher, type TeacherRow } from './useTeachers';
 import { useSubjects } from './useTeaching';
+import { getApiErrorMessage } from '@/shared/lib/apiError';
+import { digitsOnly } from '@/shared/components/Field';
 
 export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | null; onClose: () => void }) {
   const createTeacher = useCreateTeacher();
@@ -16,6 +18,7 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
     subject: editing?.subject ?? '',
     pay_mode: editing?.pay_mode ?? 'hourly',
     monthly_salary: editing?.monthly_salary ?? '',
+    hourly_rate: editing?.hourly_rate ?? '',
     status: editing?.status ?? 'active',
   });
   const paidHourly = form.pay_mode === 'hourly';
@@ -33,6 +36,8 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
       pay_mode: form.pay_mode as 'hourly' | 'monthly',
       // À l'heure, la paie sort des présences : aucun salaire fixe à saisir.
       monthly_salary: paidHourly ? undefined : Number(form.monthly_salary || 0),
+      // À l'heure : tarif de la fiche, repris par ses affectations.
+      hourly_rate: paidHourly ? Number(form.hourly_rate || 0) : undefined,
       status: form.status as 'active' | 'inactive',
     };
 
@@ -43,8 +48,8 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
         await createTeacher.mutateAsync(payload);
       }
       onClose();
-    } catch {
-      setError("Impossible d'enregistrer l'enseignant.");
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, "Impossible d'enregistrer l'enseignant."));
     }
   }
 
@@ -70,7 +75,12 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
           <Field label="Téléphone">
             <input
               value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, phone: digitsOnly(e.target.value) }))}
+              inputMode="numeric"
+              pattern="\d{10}"
+              maxLength={10}
+              title="10 chiffres"
+              placeholder="0166189877"
               className={inputClass}
             />
           </Field>
@@ -111,6 +121,19 @@ export function TeacherFormModal({ editing, onClose }: { editing: TeacherRow | n
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {paidHourly && (
+            <Field label="Tarif horaire (XOF)">
+              <input
+                required
+                type="number"
+                min={1}
+                step="1"
+                value={form.hourly_rate}
+                onChange={(e) => setForm((f) => ({ ...f, hourly_rate: e.target.value }))}
+                className={inputClass}
+              />
+            </Field>
+          )}
           {!paidHourly && (
             <Field label="Salaire mensuel (XOF)">
               <input

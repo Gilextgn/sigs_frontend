@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { type UserOptions } from 'jspdf-autotable';
 
 interface LetterheadInfo {
   school_name: string;
@@ -74,7 +74,7 @@ async function addLetterhead(doc: jsPDF, settings: LetterheadInfo | null): Promi
     doc.text(schoolName, pageWidth / 2, cursorY, { align: 'center' });
     cursorY += 8;
   }
-  doc.setDrawColor(...EMERALD);
+  doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.5);
   doc.line(15, cursorY, pageWidth - 15, cursorY);
 
@@ -83,7 +83,19 @@ async function addLetterhead(doc: jsPDF, settings: LetterheadInfo | null): Promi
 
 const currency = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 
-const EMERALD: [number, number, number] = [14, 159, 110];
+/** Tableau au format état standard : quadrillage noir fin, en-tête noir. */
+function table(doc: jsPDF, options: UserOptions) {
+  autoTable(doc, {
+    theme: 'grid',
+    ...options,
+    styles: { lineColor: [0, 0, 0], lineWidth: 0.15, textColor: [0, 0, 0], ...options.styles },
+    headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold', ...options.headStyles },
+  });
+}
+
+/** Documents officiels : noir et blanc, comme un état standard (pas de couleur de marque). */
+const BLACK: [number, number, number] = [0, 0, 0];
+const LIGHT: [number, number, number] = [235, 235, 235];
 const INK: [number, number, number] = [16, 21, 28];
 const INK_SOFT: [number, number, number] = [92, 102, 117];
 
@@ -140,7 +152,7 @@ export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, set
 
   const remainingTotal = payment.items.reduce((sum, item) => sum + item.remaining_after, 0);
 
-  autoTable(doc, {
+  table(doc, {
     startY: y,
     head: [['Libellé', 'Montant dû', 'Déjà versé', 'Versé ce jour', 'Reste', 'Statut']],
     body: payment.items.map((item) => {
@@ -155,14 +167,14 @@ export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, set
       ];
     }),
     foot: [['Total encaissé', '', '', formatCurrency(Number(payment.total_paid_amount)), formatCurrency(remainingTotal), '']],
-    headStyles: { fillColor: EMERALD },
-    footStyles: { fillColor: [228, 245, 238], textColor: INK, fontStyle: 'bold' },
+    headStyles: { fillColor: BLACK },
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
     styles: { fontSize: 9 },
     didParseCell: (data) => {
       // Montants alignés à droite dans l'en-tête, les lignes et le total.
       if (data.column.index >= 1 && data.column.index <= 4) data.cell.styles.halign = 'right';
       if (data.section === 'body' && data.column.index === 5) {
-        data.cell.styles.textColor = data.cell.raw === 'Acompte' ? [184, 121, 20] : EMERALD;
+        data.cell.styles.textColor = INK;
         data.cell.styles.fontStyle = 'bold';
       }
     },
@@ -174,7 +186,7 @@ export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, set
   doc.setFontSize(10);
   if (hasPartial) {
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(184, 121, 20);
+    doc.setTextColor(...INK);
     doc.text(`Reste à payer pour solder ces lignes : ${formatCurrency(remainingTotal)} XOF`, 15, y);
     y += 6;
     doc.setFont('helvetica', 'normal');
@@ -182,7 +194,7 @@ export async function downloadPaymentReceiptPdf(payment: PaymentReceiptData, set
     doc.text('Ce reçu atteste un versement partiel (acompte). Les lignes marquées « Acompte » ne sont pas soldées.', 15, y);
   } else {
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...EMERALD);
+    doc.setTextColor(...BLACK);
     doc.text('Toutes les lignes réglées par ce paiement sont soldées.', 15, y);
   }
 
@@ -244,21 +256,21 @@ export async function downloadPayrollSlipPdf(payroll: PayrollSlipData, settings:
   });
   y += 4;
 
-  autoTable(doc, {
+  table(doc, {
     startY: y,
     head: [['Date', 'Classe', 'Matière', 'Présence', 'Minutes payées']],
     body: payroll.sessions.map((session) => [
       new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' }).format(new Date(session.session_date)),
       session.class_label,
       session.subject_label,
-      session.status === 'present' ? 'Présent' : session.status === 'justified' ? 'Justifié' : session.status === 'replaced' ? 'Remplacé' : session.status === 'absent' ? 'Absent' : 'Non saisi',
+      session.status === 'present' ? 'Présent' : session.status === 'late' ? 'En retard' : session.status === 'justified' ? 'Justifié' : session.status === 'replaced' ? 'Remplacé' : session.status === 'absent' ? 'Absent' : 'Non saisi',
       `${session.paid_minutes} min`,
     ]),
     foot: [
       ['', '', '', 'Net à payer', `${formatCurrency(payroll.net_amount)} XOF`],
     ],
-    headStyles: { fillColor: EMERALD },
-    footStyles: { fillColor: [228, 245, 238], textColor: INK, fontStyle: 'bold' },
+    headStyles: { fillColor: BLACK },
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
     styles: { fontSize: 9 },
     margin: { left: 15, right: 15 },
   });
@@ -314,7 +326,7 @@ export async function downloadDebtorsListPdf(
 
   const total = debtors.reduce((sum, d) => sum + d.outstanding_amount, 0);
 
-  autoTable(doc, {
+  table(doc, {
     startY: y + 2,
     head: [['Matricule', 'Élève', 'Classe', 'Dû', 'Payé', 'Reste']],
     body: debtors.map((d) => [
@@ -326,8 +338,8 @@ export async function downloadDebtorsListPdf(
       formatCurrency(d.outstanding_amount),
     ]),
     foot: [['', '', '', '', 'Total', formatCurrency(total)]],
-    headStyles: { fillColor: EMERALD },
-    footStyles: { fillColor: [247, 233, 227], textColor: [181, 80, 46], fontStyle: 'bold' },
+    headStyles: { fillColor: BLACK },
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
     styles: { fontSize: 9 },
   });
 
@@ -358,11 +370,11 @@ export async function downloadReminderListPdf(rows: ReminderRowData[], title: st
   doc.setTextColor(...INK_SOFT);
   doc.text(`${rows.length} élève(s) non réinscrit(s) · édité le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date())}`, 15, y);
 
-  autoTable(doc, {
+  table(doc, {
     startY: y + 5,
     head: [['Élève', 'Matricule', 'Classe', 'Tuteur', 'Téléphone', 'Situation', 'Suite donnée']],
     body: rows.map((r) => [r.full_name, r.matricule, r.class, r.guardian, r.phone, r.situation, '']),
-    headStyles: { fillColor: EMERALD },
+    headStyles: { fillColor: BLACK },
     styles: { fontSize: 9 },
     columnStyles: { 6: { cellWidth: 50 } },
   });
@@ -419,7 +431,7 @@ export async function downloadCashPointPdf(report: CashPointData, periodLabel: s
   doc.text(`${report.payment_count} paiement(s) · Total encaissé : ${formatCurrency(report.total_amount)} XOF`, 15, y);
 
   const tableDefaults = {
-    headStyles: { fillColor: EMERALD },
+    headStyles: { fillColor: BLACK },
     styles: { fontSize: 8.5, cellPadding: 1.8 },
     margin: { left: 15, right: 15 },
   };
@@ -428,7 +440,7 @@ export async function downloadCashPointPdf(report: CashPointData, periodLabel: s
   // Détail par classe, comme le cahier.
   const body: (string | { content: string; colSpan?: number; styles?: object })[][] = [];
   for (const group of report.by_class) {
-    body.push([{ content: `${group.class} — ${group.payment_count} paiement(s)`, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [228, 245, 238] } }]);
+    body.push([{ content: `${group.class} — ${group.payment_count} paiement(s)`, colSpan: 5, styles: { fontStyle: 'bold', fillColor: LIGHT } }]);
     for (const student of group.students) {
       student.payments.forEach((payment, index) => {
         body.push([
@@ -443,46 +455,39 @@ export async function downloadCashPointPdf(report: CashPointData, periodLabel: s
     body.push([{ content: `Sous-total ${group.class}`, colSpan: 4, styles: { fontStyle: 'bold', halign: 'right' } }, { content: formatCurrency(group.total_amount), styles: { fontStyle: 'bold', halign: 'right' } }]);
   }
 
-  autoTable(doc, {
+  table(doc, {
     ...tableDefaults,
     startY: y + 5,
     head: [['Élève', 'Référence', 'Date', 'Détail', 'Montant']],
     body: body.length ? body : [[{ content: 'Aucun paiement sur la période.', colSpan: 5, styles: { halign: 'center' } }]],
     foot: [[{ content: 'Total général', colSpan: 4, styles: { halign: 'right' } }, formatCurrency(report.total_amount)]],
-    footStyles: { fillColor: [228, 245, 238], textColor: INK, fontStyle: 'bold', halign: 'right' },
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold', halign: 'right' },
     columnStyles: { 0: { cellWidth: 42 }, 1: { cellWidth: 36 }, 2: { cellWidth: 18 }, 4: { halign: 'right', cellWidth: 24 } },
   });
 
   if (report.by_cashier.length > 0) {
-    autoTable(doc, {
+    table(doc, {
       ...tableDefaults,
       startY: next(),
       head: [['Caissier', 'Paiements', 'Montant']],
       body: report.by_cashier.map((row) => [row.full_name ?? '—', String(row.payment_count), formatCurrency(row.total_amount)]),
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
     });
-    autoTable(doc, {
-      ...tableDefaults,
-      startY: next(),
-      head: [['Ligne encaissée', 'Montant']],
-      body: report.by_line.map((row) => [row.label, formatCurrency(row.total_amount)]),
-      columnStyles: { 1: { halign: 'right' } },
-    });
   }
 
   if (report.cancellations.length > 0) {
-    autoTable(doc, {
+    table(doc, {
       ...tableDefaults,
       startY: next(),
       head: [['Paiement annulé', 'Élève', 'Montant', 'Annulé le', 'Par', 'Motif']],
-      headStyles: { fillColor: [181, 80, 46] },
+      headStyles: { fillColor: BLACK },
       body: report.cancellations.map((row) => [row.reference_code, row.student ?? '—', formatCurrency(row.total_paid_amount), shortDate(row.deleted_at), row.deleted_by ?? '—', row.reason ?? '—']),
       columnStyles: { 2: { halign: 'right' } },
     });
   }
 
   if (report.closings.length > 0) {
-    autoTable(doc, {
+    table(doc, {
       ...tableDefaults,
       startY: next(),
       head: [['Clôture', 'Caissier', 'Attendu', 'Compté', 'Écart', 'État']],
@@ -527,22 +532,17 @@ export async function downloadCashPointPdf(report: CashPointData, periodLabel: s
   doc.save(`point-caisse-${periodLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
 }
 
-export interface TimetableCellData {
-  subject: string;
-  /** Classe ou enseignant, selon ce que l'on regarde. */
-  detail: string;
-  room: string | null;
-}
-
 export interface TimetableData {
+  /** Libellés des plages (« 08h00 - 09h00 »), de haut en bas. */
   slots: string[];
   days: { index: number; label: string }[];
-  cells: Record<string, TimetableCellData[]>;
+  /** Un bloc par cours : jour (index dans days), première plage, nombre de plages, texte et couleur de la matière. */
+  blocks: { day: number; row: number; span: number; text: string; color: [number, number, number] }[];
 }
 
 /**
- * Emploi du temps en grille : une ligne par plage horaire, une colonne par
- * jour. Remplace l'impression de l'écran, qui embarquait les formulaires.
+ * Emploi du temps comme on l'affiche en classe : heures en lignes, jours en
+ * colonnes, chaque cours sur toute sa durée et coloré par matière.
  */
 export async function downloadTimetablePdf(timetable: TimetableData, title: string, subtitle: string, settings: LetterheadInfo | null) {
   const doc = new jsPDF({ orientation: 'landscape' });
@@ -558,23 +558,89 @@ export async function downloadTimetablePdf(timetable: TimetableData, title: stri
   doc.setTextColor(...INK_SOFT);
   doc.text(`${subtitle} · édité le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date())}`, 15, y);
 
-  autoTable(doc, {
+  type Cell = string | { content: string; rowSpan?: number; styles?: object };
+  const covered = new Set(timetable.blocks.flatMap((block) => Array.from({ length: block.span - 1 }, (_, i) => `${block.row + i + 1}|${block.day}`)));
+  const body: Cell[][] = timetable.slots.map((slot, row) => {
+    const cells: Cell[] = [slot];
+    timetable.days.forEach((_, day) => {
+      if (covered.has(`${row}|${day}`)) return; // cellule couverte par un cours commencé plus haut
+      const block = timetable.blocks.find((candidate) => candidate.day === day && candidate.row === row);
+      cells.push(block ? { content: block.text, rowSpan: block.span, styles: { fillColor: block.color, fontStyle: 'bold' } } : '');
+    });
+    return cells;
+  });
+
+  table(doc, {
     startY: y + 5,
     head: [['Horaire', ...timetable.days.map((day) => day.label)]],
-    body: timetable.slots.map((slot) => [
-      slot,
-      ...timetable.days.map((day) =>
-        (timetable.cells[`${slot}|${day.index}`] ?? [])
-          .map((cell) => [cell.subject, cell.detail, cell.room ? `Salle ${cell.room}` : null].filter(Boolean).join('\n'))
-          .join('\n— \n'),
-      ),
-    ]),
-    headStyles: { fillColor: EMERALD, halign: 'center' },
-    styles: { fontSize: 9, valign: 'middle', cellPadding: 2.5 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 28, halign: 'center' } },
-    bodyStyles: { halign: 'center' },
-    alternateRowStyles: { fillColor: [248, 250, 251] },
+    body,
+    headStyles: { halign: 'center' },
+    styles: { fontSize: 9, valign: 'middle', halign: 'center', cellPadding: 2.5, minCellHeight: 9 },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30, fillColor: [255, 255, 255] } },
   });
 
   doc.save('emploi-du-temps.pdf');
+}
+
+export interface TeacherAnnualSummaryData {
+  teacher: { full_name: string; pay_mode: string };
+  school_year: string;
+  months: { period: string; worked_hours: number; base_amount: number | null; bonus_amount: number | null; deduction_amount: number | null; net_amount: number | null; status: string; paid_at: string | null }[];
+  totals: { worked_hours: number; net_amount: number; paid_amount: number; pending_amount: number };
+}
+
+/** Récapitulatif de l'année pour un enseignant : un mois par ligne, totaux, signatures. */
+export async function downloadTeacherAnnualSummaryPdf(summary: TeacherAnnualSummaryData, settings: LetterheadInfo | null) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = await addLetterhead(doc, settings);
+  const month = (period: string) => new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(`${period}-01T00:00:00`));
+  const money = (value: number | null) => (value === null ? '—' : formatCurrency(value));
+  const status = (value: string) => (value === 'paid' ? 'Payé' : value === 'pending' ? 'À payer' : 'Non établi');
+
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text(`Récapitulatif de paie — année ${summary.school_year}`, 15, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Enseignant : ${summary.teacher.full_name} · ${summary.teacher.pay_mode === 'monthly' ? 'salaire fixe' : 'payé à l’heure'}`, 15, y);
+
+  table(doc, {
+    startY: y + 5,
+    head: [['Mois', 'Heures faites', 'Base', 'Prime', 'Retenue', 'Net', 'Statut']],
+    body: summary.months.map((row) => [
+      month(row.period),
+      row.worked_hours.toLocaleString('fr-FR'),
+      money(row.base_amount),
+      money(row.bonus_amount),
+      money(row.deduction_amount),
+      money(row.net_amount),
+      status(row.status) + (row.paid_at ? ` le ${new Intl.DateTimeFormat('fr-FR').format(new Date(row.paid_at))}` : ''),
+    ]),
+    foot: [['Total', summary.totals.worked_hours.toLocaleString('fr-FR'), '', '', '', formatCurrency(summary.totals.net_amount), '']],
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
+    styles: { fontSize: 9 },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+  });
+
+  let endY = ((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 8;
+  doc.setFontSize(10);
+  doc.text(`Déjà payé : ${formatCurrency(summary.totals.paid_amount)} XOF · Reste à payer : ${formatCurrency(summary.totals.pending_amount)} XOF`, 15, endY);
+
+  endY = Math.max(endY + 20, pageHeight - 50);
+  if (endY > pageHeight - 30) {
+    doc.addPage();
+    endY = 30;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.text("L'enseignant", 15, endY);
+  doc.text('Le Directeur', pageWidth - 15, endY, { align: 'right' });
+  doc.setLineWidth(0.2);
+  doc.line(15, endY + 22, 80, endY + 22);
+  doc.line(pageWidth - 80, endY + 22, pageWidth - 15, endY + 22);
+
+  doc.save(`recap-paie-${summary.school_year}-${summary.teacher.full_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
 }

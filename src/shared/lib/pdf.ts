@@ -6,7 +6,7 @@
  */
 import type * as Documents from './pdfDocuments';
 
-export type { DebtorRowData, PaymentReceiptData, PayrollSlipData, ReminderRowData, TimetableCellData, TimetableData } from './pdfDocuments';
+export type { DebtorRowData, PaymentReceiptData, PayrollSlipData, ReminderRowData, TeacherAnnualSummaryData, TimetableData } from './pdfDocuments';
 
 const load = () => import('./pdfDocuments');
 
@@ -28,6 +28,10 @@ export async function downloadReminderListPdf(...args: Parameters<typeof Documen
 
 export async function downloadCashPointPdf(...args: Parameters<typeof Documents.downloadCashPointPdf>) {
   return (await load()).downloadCashPointPdf(...args);
+}
+
+export async function downloadTeacherAnnualSummaryPdf(...args: Parameters<typeof Documents.downloadTeacherAnnualSummaryPdf>) {
+  return (await load()).downloadTeacherAnnualSummaryPdf(...args);
 }
 
 export async function downloadTimetablePdf(...args: Parameters<typeof Documents.downloadTimetablePdf>) {

@@ -24,7 +24,9 @@ export interface ScheduleRow {
   room: string | null;
   school_class?: { label: string };
   subject?: { label: string };
-  assignment?: { teacher?: { full_name: string } };
+  assignment?: { teacher_id?: number; teacher?: { full_name: string } };
+  /** Chevauchement enregistré avant le contrôle (à corriger), sinon null. */
+  conflict?: string | null;
 }
 export interface SessionRow {
   id: number;
@@ -36,7 +38,7 @@ export interface SessionRow {
   status: string;
   school_class?: { label: string };
   assignment?: { teacher?: { id: number; full_name: string }; subject?: { label: string } };
-  attendance?: { status: string; absence_minutes: number; reason: string | null } | null;
+  attendance?: { status: string; absence_minutes: number; reason: string | null; replacement_teacher_id: number | null } | null;
 }
 
 export function useSubjects(search?: string) {
@@ -68,11 +70,20 @@ export function useDeleteSubject() {
 }
 export function useCreateAssignment() {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: async (payload: { teacher_id: number; class_id: number; subject_id: number; hourly_rate: number; weekly_hours?: number }) => (await apiClient.post('/teacher-assignments', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] }) });
+  return useMutation({ mutationFn: async (payload: { teacher_id: number; class_id: number; subject_id: number; hourly_rate?: number; weekly_hours?: number }) => (await apiClient.post('/teacher-assignments', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] }) });
 }
 export function useCreateSchedule() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: async (payload: { class_id: number; subject_id: number; teacher_assignment_id: number; day_of_week: number; starts_at: string; ends_at: string; room?: string }) => (await apiClient.post('/schedules', payload)).data, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }) });
+}
+/** Modifier un créneau : jour, horaire, salle ou enseignant (autre affectation de la même classe et matière). */
+export function useUpdateSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: { day_of_week?: number; starts_at?: string; ends_at?: string; room?: string | null; teacher_assignment_id?: number } }) =>
+      (await apiClient.put<ScheduleRow>(`/schedules/${id}`, payload)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
+  });
 }
 export function useDeleteSchedule() {
   const queryClient = useQueryClient();
@@ -81,7 +92,7 @@ export function useDeleteSchedule() {
 export function useCreateAttendance() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { teaching_session_id: number; teacher_id: number; status: string; absence_minutes?: number; reason?: string }) => (await apiClient.post('/teacher-attendances', payload)).data,
+    mutationFn: async (payload: { teaching_session_id: number; teacher_id: number; status: string; absence_minutes?: number; reason?: string; replacement_teacher_id?: number }) => (await apiClient.post('/teacher-attendances', payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teacher-attendances'] });
       // Les séances embarquent leur présence (session.attendance) : sans

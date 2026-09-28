@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Download, Plus, Printer, Settings2, Trash2 } from 'lucide-react';
+import { AlertTriangle, Download, Pencil, Plus, Printer, Settings2, Trash2 } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Pagination } from '@/shared/components/Pagination';
-import { deleteIconClass } from '@/shared/components/actionStyles';
+import { deleteIconClass, editIconClass } from '@/shared/components/actionStyles';
+import { Modal } from '@/shared/components/Modal';
 import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
-import { downloadTimetablePdf, type TimetableCellData } from '@/shared/lib/pdf';
+import { downloadTimetablePdf } from '@/shared/lib/pdf';
 import { useTeachers } from './useTeachers';
-import { DAYS, buildTimetable, hhmm, timeRange } from './timetable';
-import { TimetableGrid } from './TimetableGrid';
+import { DAYS, buildTimeGrid, hhmm, subjectColor, timeRange } from './timetable';
+import { TimetableGrid, scheduleDetail } from './TimetableGrid';
 import {
   useAssignments,
   useCreateAssignment,
@@ -19,6 +20,8 @@ import {
   useDeleteSchedule,
   useSchedules,
   useSubjects,
+  useUpdateSchedule,
+  type AssignmentRow,
   type ScheduleRow,
 } from './useTeaching';
 
@@ -46,6 +49,7 @@ export default function SchedulePage() {
   const [hourlyRate, setHourlyRate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<ScheduleRow | null>(null);
+  const [toEdit, setToEdit] = useState<ScheduleRow | null>(null);
 
   const { data: classes } = useClasses();
   const { data: teachers } = useTeachers('active');
@@ -78,9 +82,10 @@ export default function SchedulePage() {
 
   async function addAssignment() {
     setError(null);
-    if (!teacherId || !classId || !subjectId || !hourlyRate) return setError('Sélectionnez l’enseignant, la classe, la matière et le tarif horaire.');
+    if (!teacherId || !classId || !subjectId) return setError('Sélectionnez l’enseignant, la classe et la matière.');
     try {
-      const assignment = await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_id: Number(subjectId), hourly_rate: Number(hourlyRate) });
+      // Tarif vide : celui de la fiche de l'enseignant.
+      const assignment = await createAssignment.mutateAsync({ teacher_id: Number(teacherId), class_id: Number(classId), subject_id: Number(subjectId), hourly_rate: hourlyRate ? Number(hourlyRate) : undefined });
       setAssignmentId(assignment.id);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Cette affectation existe déjà ou est invalide.'));
@@ -128,25 +133,26 @@ export default function SchedulePage() {
     URL.revokeObjectURL(url);
   }
 
+  // Une classe (ou un enseignant) précise : la case dit l'enseignant (ou la classe) ; sinon les deux.
+  const specific = view === 'class' ? !!viewClassId : !!viewTeacherId;
+
   async function exportPdf() {
     const rows = schedules ?? [];
-    const timetable = buildTimetable(rows);
-    const cells: Record<string, TimetableCellData[]> = {};
-
-    for (const row of rows) {
-      const key = `${timeRange(row)}|${row.day_of_week}`;
-      cells[key] = [
-        ...(cells[key] ?? []),
-        {
-          subject: row.subject?.label ?? '—',
-          detail: view === 'class' ? (row.assignment?.teacher?.full_name ?? '—') : (row.school_class?.label ?? '—'),
-          room: row.room,
-        },
-      ];
-    }
-
+    const grid = buildTimeGrid(rows);
     await downloadTimetablePdf(
-      { slots: timetable.slots, days: timetable.days.map((index) => ({ index, label: DAYS[index - 1] })), cells },
+      {
+        slots: grid.slots.map((slot) => `${slot.start.replace(':', 'h')} - ${slot.end.replace(':', 'h')}`),
+        days: grid.days.map((index) => ({ index, label: DAYS[index - 1] })),
+        blocks: grid.days.flatMap((day, dayIndex) =>
+          grid.blocks[day].map((block) => ({
+            day: dayIndex,
+            row: block.row,
+            span: block.span,
+            text: block.entries.map((entry) => [entry.subject?.label ?? '—', scheduleDetail(entry, view, specific), entry.room ? `Salle ${entry.room}` : null].filter(Boolean).join('\n')).join('\n\n'),
+            color: subjectColor(block.entries[0]),
+          })),
+        ),
+      },
       `Emploi du temps — ${selectionLabel}`,
       view === 'class' ? 'Par classe' : 'Par enseignant',
       settings ?? null,
@@ -154,6 +160,7 @@ export default function SchedulePage() {
   }
 
   const nothingToExport = (schedules ?? []).length === 0;
+  const conflicts = (schedules ?? []).filter((schedule) => schedule.conflict).length;
 
   return (
     <div className="space-y-6">
@@ -184,6 +191,12 @@ export default function SchedulePage() {
       </div>
 
       {error && <div className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</div>}
+      {conflicts > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {conflicts} créneau(x) en conflit (même enseignant ou même classe à la même heure), saisis avant le contrôle automatique : modifiez-les dans « Créneaux planifiés ».
+        </div>
+      )}
 
       <section className="rounded-xl border border-border bg-surface">
         <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
@@ -227,7 +240,7 @@ export default function SchedulePage() {
           </div>
         </div>
         <div className="p-4">
-          <TimetableGrid rows={schedules ?? []} view={view} />
+          <TimetableGrid rows={schedules ?? []} view={view} specific={specific} />
         </div>
       </section>
 
@@ -251,7 +264,7 @@ export default function SchedulePage() {
               <SearchableSelect value={teacherId} onChange={setTeacherId} placeholder="Choisir un enseignant" options={teacherRows.map((teacher) => ({ value: teacher.id, label: teacher.full_name }))} />
               <SearchableSelect value={classId} onChange={setClassId} placeholder="Choisir une classe" options={(classes ?? []).map((schoolClass) => ({ value: schoolClass.id, label: schoolClass.label }))} />
               <SearchableSelect value={subjectId} onChange={setSubjectId} placeholder="Choisir une matière" options={(subjects ?? []).map((subject) => ({ value: subject.id, label: subject.label, hint: subject.code }))} />
-              <input type="number" min="0.01" step="0.01" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="Tarif horaire (XOF)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
+              <input type="number" min="0.01" step="0.01" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="Tarif horaire (vide = celui de la fiche)" className="rounded-lg border border-border bg-paper px-3 py-2 text-sm" />
             </div>
             <button type="button" onClick={addAssignment} className="mt-3 flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary-soft">
               <Plus className="h-4 w-4" /> Enregistrer l’affectation
@@ -308,8 +321,18 @@ export default function SchedulePage() {
                       <td className="px-4 py-3">{schedule.school_class?.label ?? '—'}</td>
                       <td className="px-4 py-3">{schedule.subject?.label ?? '—'}</td>
                       <td className="px-4 py-3">{schedule.assignment?.teacher?.full_name ?? '—'}</td>
-                      <td className="px-4 py-3">{schedule.room ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3">
+                        {schedule.room ?? '—'}
+                        {schedule.conflict && (
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold text-danger" title={schedule.conflict}>
+                            <AlertTriangle className="h-3 w-3" /> Conflit
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button type="button" onClick={() => setToEdit(schedule)} className={editIconClass} aria-label="Modifier le créneau" title="Modifier">
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         <button type="button" onClick={() => setToDelete(schedule)} className={deleteIconClass} aria-label="Désactiver le créneau">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -325,6 +348,8 @@ export default function SchedulePage() {
         </>
       )}
 
+      {toEdit && <EditSlotModal slot={toEdit} assignments={assignments ?? []} onClose={() => setToEdit(null)} />}
+
       <ConfirmDialog
         open={toDelete !== null}
         title="Désactiver ce créneau ?"
@@ -334,5 +359,79 @@ export default function SchedulePage() {
         onCancel={() => setToDelete(null)}
       />
     </div>
+  );
+}
+
+/** Déplacer un créneau (jour, horaire, salle) ou changer d'enseignant ; le serveur refuse tout chevauchement. */
+function EditSlotModal({ slot, assignments, onClose }: { slot: ScheduleRow; assignments: AssignmentRow[]; onClose: () => void }) {
+  const update = useUpdateSchedule();
+  const [day, setDay] = useState(slot.day_of_week);
+  const [startsAt, setStartsAt] = useState(hhmm(slot.starts_at));
+  const [endsAt, setEndsAt] = useState(hhmm(slot.ends_at));
+  const [room, setRoom] = useState(slot.room ?? '');
+  const [assignmentId, setAssignmentId] = useState(slot.teacher_assignment_id);
+  const [error, setError] = useState<string | null>(null);
+  const choices = assignments.filter((a) => a.class_id === slot.class_id && a.subject_id === slot.subject_id);
+  const field = 'w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink';
+
+  async function save() {
+    setError(null);
+    try {
+      await update.mutateAsync({ id: slot.id, payload: { day_of_week: day, starts_at: startsAt, ends_at: endsAt, room: room || null, teacher_assignment_id: assignmentId } });
+      onClose();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, 'Impossible de modifier ce créneau.'));
+    }
+  }
+
+  return (
+    <Modal title={`Modifier le créneau · ${slot.school_class?.label ?? ''} · ${slot.subject?.label ?? ''}`} onClose={onClose}>
+      <div className="space-y-3">
+        {slot.conflict && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{slot.conflict}</p>}
+        {error && <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-ink">Enseignant</span>
+          <select value={assignmentId} onChange={(e) => setAssignmentId(Number(e.target.value))} className={field}>
+            {choices.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.teacher?.full_name ?? 'Enseignant'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium text-ink">Jour</span>
+            <select value={day} onChange={(e) => setDay(Number(e.target.value))} className={field}>
+              {DAYS.slice(0, 6).map((label, index) => (
+                <option key={label} value={index + 1}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium text-ink">Début</span>
+            <input type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={field} />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium text-ink">Fin</span>
+            <input type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className={field} />
+          </label>
+        </div>
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-ink">Salle (optionnel)</span>
+          <input value={room} onChange={(e) => setRoom(e.target.value)} className={field} />
+        </label>
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
+            Annuler
+          </button>
+          <button type="button" onClick={save} disabled={update.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-60">
+            {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

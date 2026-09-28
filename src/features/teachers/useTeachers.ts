@@ -9,6 +9,7 @@ export interface TeacherRow {
   /** hourly : payé aux heures faites (présences) ; monthly : salaire fixe. */
   pay_mode: 'hourly' | 'monthly';
   monthly_salary: string | null;
+  hourly_rate: string | null;
   status: 'active' | 'inactive';
 }
 
@@ -18,6 +19,7 @@ export interface TeacherPayload {
   subject?: string;
   pay_mode?: 'hourly' | 'monthly';
   monthly_salary?: number;
+  hourly_rate?: number;
   status?: 'active' | 'inactive';
 }
 
