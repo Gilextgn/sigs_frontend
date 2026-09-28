@@ -34,6 +34,10 @@ export async function downloadTeacherAnnualSummaryPdf(...args: Parameters<typeof
   return (await load()).downloadTeacherAnnualSummaryPdf(...args);
 }
 
+export async function downloadReminderLettersPdf(...args: Parameters<typeof Documents.downloadReminderLettersPdf>) {
+  return (await load()).downloadReminderLettersPdf(...args);
+}
+
 export async function downloadTimetablePdf(...args: Parameters<typeof Documents.downloadTimetablePdf>) {
   return (await load()).downloadTimetablePdf(...args);
 }

@@ -8,6 +8,7 @@ import { Modal } from '@/shared/components/Modal';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
 import { useIdleLogout } from '@/shared/hooks/useIdleLogout';
 import { useAuth } from '@/features/auth/AuthContext';
+import { apiClient } from '@/shared/lib/apiClient';
 import { formatDate } from '@/shared/lib/format';
 import { PaymentDeskProvider } from '@/features/payments/PaymentDesk';
 
@@ -27,6 +28,20 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, user, hasPermission } = useAuth();
+
+  // Relances automatiques du jour : pas de tâche planifiée sur l'hébergement, c'est la
+  // première visite de la journée qui les déclenche (le serveur n'envoie qu'une fois par jour).
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      if (localStorage.getItem('sigs:reminders-auto') === today) return;
+      localStorage.setItem('sigs:reminders-auto', today);
+    } catch {
+      // Stockage indisponible : l'appel part, le serveur protège déjà contre les doublons.
+    }
+    apiClient.post('/reminders/auto').catch(() => undefined);
+  }, [user]);
 
   // Un compte sans aucun droit d'écriture est un compte de consultation
   // (typiquement la démonstration publique) : on l'annonce, sinon l'absence

@@ -644,3 +644,101 @@ export async function downloadTeacherAnnualSummaryPdf(summary: TeacherAnnualSumm
 
   doc.save(`recap-paie-${summary.school_year}-${summary.teacher.full_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
 }
+
+export interface ReminderLetterData {
+  full_name: string;
+  matricule: string;
+  class: string | null;
+  guardian: string | null;
+  message: string;
+  items: { label: string; remaining: number; due_date: string }[];
+  total: number;
+}
+
+/**
+ * Avis de relance papier, à remettre aux élèves : deux avis par feuille A4
+ * (on coupe au pointillé), en noir et blanc, avec l'en-tête de l'école, le
+ * message du directeur, les tranches dues et la signature.
+ */
+export async function downloadReminderLettersPdf(letters: ReminderLetterData[], settings: LetterheadInfo | null) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const half = doc.internal.pageSize.getHeight() / 2;
+  const shortDate = (value: string) => new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`));
+  const today = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date());
+  // L'en-tête est chargé une fois, puis reproduit sur chaque avis.
+  const letterheadData = settings?.letterhead_url ? await loadImageAsDataUrl(settings.letterhead_url) : null;
+  const letterhead = letterheadData ? await createRectangularLetterhead(letterheadData) : null;
+
+  letters.forEach((letter, index) => {
+    const top = index % 2 === 0 ? 0 : half;
+    if (index > 0 && index % 2 === 0) doc.addPage();
+    let y = top + 10;
+
+    if (letterhead) {
+      try {
+        doc.addImage(letterhead, 'PNG', 15, y, pageWidth - 30, 18, undefined, 'FAST');
+        y += 21;
+      } catch {
+        // Image non prise en charge : l'avis reste lisible sans en-tête.
+      }
+    }
+    const schoolName = settings?.school_name?.trim();
+    if (!letterhead && schoolName) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(...INK);
+      doc.text(schoolName, pageWidth / 2, y + 4, { align: 'center' });
+      y += 9;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...INK);
+    doc.text('AVIS DE RELANCE — FRAIS DE SCOLARITÉ', 15, y + 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Le ${today}`, pageWidth - 15, y + 4, { align: 'right' });
+    y += 9;
+    doc.text(`Élève : ${letter.full_name} (${letter.matricule}) · Classe : ${letter.class ?? '—'}`, 15, y);
+    y += 5;
+    doc.text(`À l'attention de : ${letter.guardian ?? 'Madame, Monsieur'}`, 15, y);
+    y += 6;
+
+    // Le message du directeur, sans la liste des tranches (reprise dans le tableau).
+    const body = letter.message.split('\n').filter((line) => !line.trim().startsWith('- ')).join('\n');
+    doc.setFontSize(9);
+    const lines = doc.splitTextToSize(body, pageWidth - 30);
+    doc.text(lines, 15, y);
+    y += lines.length * 4 + 2;
+
+    table(doc, {
+      startY: y,
+      margin: { left: 15, right: 15 },
+      head: [['Tranche', 'Échéance', 'Reste à payer']],
+      body: letter.items.map((item) => [item.label, shortDate(item.due_date), `${formatCurrency(item.remaining)} XOF`]),
+      foot: [['Total', '', `${formatCurrency(letter.total)} XOF`]],
+      footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
+      styles: { fontSize: 8.5, cellPadding: 1.5 },
+      columnStyles: { 2: { halign: 'right' } },
+      pageBreak: 'avoid',
+    });
+
+    const signY = Math.min(((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 8, top + half - 22);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Le Directeur', pageWidth - 15, signY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setLineWidth(0.2);
+    doc.line(pageWidth - 70, signY + 13, pageWidth - 15, signY + 13);
+
+    // Pointillé de découpe entre les deux avis d'une feuille.
+    if (index % 2 === 0) {
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(10, half, pageWidth - 10, half);
+      doc.setLineDashPattern([], 0);
+    }
+  });
+
+  doc.save(`avis-relance-${new Date().toISOString().slice(0, 10)}.pdf`);
+}

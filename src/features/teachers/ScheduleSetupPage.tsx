@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useClasses } from '@/features/classes/useClasses';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
-import { Pagination } from '@/shared/components/Pagination';
 import { deleteIconClass, editIconClass } from '@/shared/components/actionStyles';
-import { usePaginatedRows } from '@/shared/hooks/usePaginatedRows';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { useTeachers } from './useTeachers';
 import { DAYS, timeRange } from './timetable';
@@ -46,7 +44,26 @@ export default function ScheduleSetupPage() {
   const createAssignment = useCreateAssignment();
   const createSchedule = useCreateSchedule();
   const deleteSchedule = useDeleteSchedule();
-  const { pageRows, ...pagination } = usePaginatedRows(schedules);
+  const [openGroups, setOpenGroups] = useState<Set<number>>(new Set());
+  const toggleGroup = (id: number) =>
+    setOpenGroups((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const slotGroups = (() => {
+    const order = new Map((classes ?? []).map((schoolClass, index) => [schoolClass.id, index]));
+    const byClass = new Map<number, ScheduleRow[]>();
+    for (const slot of schedules ?? []) byClass.set(slot.class_id, [...(byClass.get(slot.class_id) ?? []), slot]);
+    return [...byClass.entries()]
+      .sort(([a], [b]) => (order.get(a) ?? 999) - (order.get(b) ?? 999))
+      .map(([id, slots]) => ({
+        classId: id,
+        label: slots[0]?.school_class?.label ?? '—',
+        slots: [...slots].sort((a, b) => a.day_of_week - b.day_of_week || a.starts_at.localeCompare(b.starts_at)),
+      }));
+  })();
 
   const teacherRows = teachers?.data ?? [];
   const teacherLevel = teacherRows.find((teacher) => teacher.id === teacherId)?.level;
@@ -221,50 +238,67 @@ export default function ScheduleSetupPage() {
             <AlertTriangle className="h-4 w-4 shrink-0" /> {conflicts} créneau(x) en conflit à corriger (bouton crayon).
           </p>
         )}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-paper text-xs text-ink-soft uppercase">
-              <tr>
-                <th className="px-4 py-3">Jour</th>
-                <th className="px-4 py-3">Horaire</th>
-                <th className="px-4 py-3">Classe</th>
-                <th className="px-4 py-3">Matière</th>
-                <th className="px-4 py-3">Enseignant</th>
-                <th className="px-4 py-3">Salle</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {pageRows.map((schedule) => (
-                <tr key={schedule.id} className={schedule.conflict ? 'bg-danger-soft/40' : ''}>
-                  <td className="px-4 py-3">{DAYS[schedule.day_of_week - 1]}</td>
-                  <td className="font-tabular px-4 py-3">{timeRange(schedule)}</td>
-                  <td className="px-4 py-3">{schedule.school_class?.label ?? '—'}</td>
-                  <td className="px-4 py-3">{schedule.subject?.label ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {schedule.assignment?.teacher?.full_name ?? '—'}
-                    {schedule.conflict && (
-                      <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger" title={schedule.conflict}>
-                        <AlertTriangle className="h-3 w-3" /> {schedule.conflict}
+        {(schedules ?? []).length === 0 && <p className="px-4 py-8 text-center text-sm text-ink-soft">Aucun créneau pour cette sélection.</p>}
+        {/* Une carte par classe (ordre des classes), créneaux triés par jour puis heure : la liste reste lisible quand elle grandit. */}
+        <div className="divide-y divide-border">
+          {slotGroups.map(({ classId: groupId, label, slots }) => {
+            const hasConflict = slots.some((slot) => slot.conflict);
+            const isOpen = openGroups.has(groupId) || !!listClassId || hasConflict;
+            return (
+              <div key={groupId}>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(groupId)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-paper"
+                >
+                  <span className="flex items-center gap-2 font-medium text-ink">
+                    <ChevronDown className={`h-4 w-4 text-ink-soft transition ${isOpen ? 'rotate-180' : ''}`} />
+                    {label}
+                    {hasConflict && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold text-danger">
+                        <AlertTriangle className="h-3 w-3" /> Conflit
                       </span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">{schedule.room ?? '—'}</td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <button type="button" onClick={() => setToEdit(schedule)} className={editIconClass} aria-label="Modifier le créneau" title="Modifier">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button type="button" onClick={() => setToDelete(schedule)} className={deleteIconClass} aria-label="Retirer le créneau" title="Retirer">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                  <span className="text-xs text-ink-soft">{slots.length} créneau(x) · {new Set(slots.map((slot) => slot.day_of_week)).size} jour(s)</span>
+                </button>
+                {isOpen && (
+                  <div className="overflow-x-auto border-t border-border bg-paper/40">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <tbody className="divide-y divide-border">
+                        {slots.map((schedule) => (
+                          <tr key={schedule.id} className={schedule.conflict ? 'bg-danger-soft/40' : ''}>
+                            <td className="w-28 py-2.5 pr-4 pl-10">{DAYS[schedule.day_of_week - 1]}</td>
+                            <td className="font-tabular w-32 px-4 py-2.5">{timeRange(schedule)}</td>
+                            <td className="px-4 py-2.5">{schedule.subject?.label ?? '—'}</td>
+                            <td className="px-4 py-2.5">
+                              {schedule.assignment?.teacher?.full_name ?? '—'}
+                              {schedule.conflict && (
+                                <span className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-danger" title={schedule.conflict}>
+                                  <AlertTriangle className="h-3 w-3" /> {schedule.conflict}
+                                </span>
+                              )}
+                            </td>
+                            <td className="w-24 px-4 py-2.5 text-ink-soft">{schedule.room ?? '—'}</td>
+                            <td className="w-24 px-4 py-2.5 text-right whitespace-nowrap">
+                              <button type="button" onClick={() => setToEdit(schedule)} className={editIconClass} aria-label="Modifier le créneau" title="Modifier">
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button type="button" onClick={() => setToDelete(schedule)} className={deleteIconClass} aria-label="Retirer le créneau" title="Retirer">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        {(schedules ?? []).length === 0 && <p className="px-4 py-8 text-center text-sm text-ink-soft">Aucun créneau pour cette sélection.</p>}
-        <Pagination {...pagination} onPageChange={pagination.setPage} />
       </section>
 
       {toEdit && <EditSlotModal slot={toEdit} assignments={assignments ?? []} onClose={() => setToEdit(null)} />}

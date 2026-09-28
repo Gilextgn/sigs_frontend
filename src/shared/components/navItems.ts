@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
   BarChart3,
+  BellRing,
   BookOpen,
   CalendarCog,
   CalendarDays,
@@ -70,6 +71,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: UserX,
     children: [
       { code: 'debtors', label: 'Débiteurs', path: '/debtors', icon: UserX, permission: 'debtors.print', badge: 'debtors' },
+      { code: 'reminders', label: 'Relances', path: '/reminders', icon: BellRing, permission: 'debtors.print' },
       { code: 'year-closing', label: "Clôture d'année", path: '/year-closing', icon: Lock, permission: 'settings.view' },
     ],
   },

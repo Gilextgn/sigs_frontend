@@ -24,6 +24,7 @@ const FeesPage = lazyPage(() => import('@/features/fees/FeesPage'));
 const PaymentsPage = lazyPage(() => import('@/features/payments/PaymentsPage'));
 const CashPointPage = lazyPage(() => import('@/features/cash/CashPointPage'));
 const DebtorsPage = lazyPage(() => import('@/features/debtors/DebtorsPage'));
+const RemindersPage = lazyPage(() => import('@/features/debtors/RemindersPage'));
 const TeachersPage = lazyPage(() => import('@/features/teachers/TeachersPage'));
 const PayrollPage = lazyPage(() => import('@/features/payroll/PayrollPage'));
 const UsersPage = lazyPage(() => import('@/features/users/UsersPage'));
@@ -117,6 +118,7 @@ function AppRoutes() {
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/cash-point" element={<CashPointPage />} />
               <Route path="/debtors" element={<DebtorsPage />} />
+              <Route path="/reminders" element={<RemindersPage />} />
               <Route path="/teachers" element={<TeachersPage />} />
               <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/schedule/setup" element={<ScheduleSetupPage />} />
