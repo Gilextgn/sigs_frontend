@@ -4,6 +4,7 @@ import { KeyRound, MessageCircle, PauseCircle, Pencil, PlayCircle, RefreshCw, Wa
 import { whatsappLink } from './billing';
 import { ContactSection, PaymentsSection, ReminderButton } from './SchoolBillingSections';
 import { Modal } from '@/shared/components/Modal';
+import { NAV_ITEMS } from '@/shared/components/navItems';
 import { CopyButton } from '@/shared/components/CopyButton';
 import { Loader, Spinner } from '@/shared/components/Loader';
 import { inputClass } from '@/shared/components/Field';
@@ -482,6 +483,8 @@ export function SchoolDetailModal({
             </div>
           </div>
 
+          <ModulesSection school={school} onError={setError} />
+
           <ContactSection school={school} onError={setError} />
 
           <PaymentsSection school={school} onError={setError} />
@@ -648,5 +651,69 @@ export function SchoolDetailModal({
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Onglets du menu visibles pour cette école : décocher un onglet (ou tout un
+ * groupe) le retire du menu de tous ses utilisateurs, directeur compris, sans
+ * toucher au code. Les droits de chaque compte restent réglés par l'école.
+ */
+function ModulesSection({ school, onError }: { school: PlatformSchool; onError: (message: string | null) => void }) {
+  const update = useUpdateSchool();
+  const [hidden, setHidden] = useState<string[] | null>(null);
+  const current = hidden ?? school.hidden_modules ?? [];
+  const dirty = hidden !== null && [...hidden].sort().join(',') !== [...(school.hidden_modules ?? [])].sort().join(',');
+  const toggle = (code: string) => setHidden(current.includes(code) ? current.filter((c) => c !== code) : [...current, code]);
+
+  async function save() {
+    onError(null);
+    try {
+      await update.mutateAsync({ id: school.id, hidden_modules: current });
+      setHidden(null);
+    } catch (requestError) {
+      onError(getApiErrorMessage(requestError, "Impossible d'enregistrer les onglets."));
+    }
+  }
+
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-semibold tracking-wide text-ink-soft uppercase">Onglets visibles dans le menu de l'école</h3>
+      <div className="space-y-3 rounded-xl border border-border p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {NAV_ITEMS.map((item) => {
+            const groupHidden = current.includes(item.code);
+            return (
+              <div key={item.code}>
+                <label className="flex items-center gap-2 text-sm font-medium text-ink">
+                  <input type="checkbox" checked={!groupHidden} onChange={() => toggle(item.code)} className="accent-primary" />
+                  {item.label}
+                </label>
+                {item.children && (
+                  <div className="mt-1 ml-6 space-y-0.5">
+                    {item.children.map((child) => (
+                      <label key={child.code} className={`flex items-center gap-2 text-xs ${groupHidden ? 'text-ink-muted' : 'text-ink-soft'}`}>
+                        <input type="checkbox" disabled={groupHidden} checked={!groupHidden && !current.includes(child.code)} onChange={() => toggle(child.code)} className="accent-primary" />
+                        {child.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {dirty && (
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setHidden(null)} className="rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-ink hover:bg-paper">
+              Annuler
+            </button>
+            <button type="button" onClick={save} disabled={update.isPending} className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark disabled:opacity-60">
+              {update.isPending && <Spinner />} Enregistrer
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

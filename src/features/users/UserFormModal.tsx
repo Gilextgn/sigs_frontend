@@ -31,12 +31,23 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
   const [error, setError] = useState<string | null>(null);
   const isSaving = createUser.isPending || updateUser.isPending;
 
-  // Pré-remplit les permissions individuelles cochées une fois le détail chargé
-  useEffect(() => {
-    if (userDetail) setPermissions(userDetail.permission_overrides);
-  }, [userDetail]);
-
   const rolePermissionCodes = roles?.find((r) => r.id === Number(form.role_id))?.permissions.map((p) => p.code) ?? [];
+  const roleKey = rolePermissionCodes.join(',');
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+
+  // Droits réels du compte (rôle + ajouts − retraits) une fois le détail chargé ; pour un
+  // nouveau compte, ou quand on change de rôle, on repart des droits du rôle.
+  useEffect(() => {
+    if (editing && userDetail && loadedFor === null) {
+      setPermissions(userDetail.effective_permissions ?? userDetail.permission_overrides);
+      setLoadedFor(String(form.role_id));
+      return;
+    }
+    if ((!editing || loadedFor !== null) && loadedFor !== String(form.role_id) && roleKey) {
+      setPermissions(roleKey.split(','));
+      setLoadedFor(String(form.role_id));
+    }
+  }, [editing, userDetail, loadedFor, form.role_id, roleKey]);
 
   function togglePermission(code: string) {
     setPermissions((current) =>
@@ -63,6 +74,8 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
       role_id: Number(form.role_id),
       status: form.status as 'active' | 'inactive' | 'locked',
       permissions,
+      // La liste envoyée est complète : décocher un droit du rôle le retire à ce compte.
+      permissions_mode: 'effective' as const,
     };
 
     try {
@@ -154,25 +167,25 @@ export function UserFormModal({ editing, onClose }: { editing: UserRow | null; o
         </div>
 
         <div>
-          <p className="mb-1.5 text-sm font-medium text-ink">Permissions supplémentaires</p>
+          <p className="mb-1.5 text-sm font-medium text-ink">Droits de ce compte</p>
           <p className="mb-2 text-xs text-ink-soft">
-            Le rôle sélectionné accorde déjà certaines permissions (grisées, cochées automatiquement).
-            Cochez ici des droits individuels en plus.
+            Cochés d'après le rôle choisi. Décochez ce que ce compte ne doit pas voir ou faire (les onglets correspondants disparaissent de son menu),
+            cochez ce que vous voulez lui accorder en plus. <span className="font-medium">(rôle)</span> = accordé par défaut par le rôle.
           </p>
           <div className="grid max-h-56 grid-cols-1 sm:grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-border bg-paper p-3">
             {permissionsCatalog?.map((perm) => {
               const fromRole = rolePermissionCodes.includes(perm.code);
-              const checked = fromRole || permissions.includes(perm.code);
+              const checked = permissions.includes(perm.code);
               return (
-                <label key={perm.code} className={`flex items-center gap-2 rounded px-1.5 py-1 text-xs ${fromRole ? 'text-ink-soft' : 'text-ink'}`}>
+                <label key={perm.code} className="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-ink">
                   <input
                     type="checkbox"
                     checked={checked}
-                    disabled={fromRole}
                     onChange={() => togglePermission(perm.code)}
                     className="h-3.5 w-3.5 rounded border-border accent-primary"
                   />
-                  {perm.label}
+                  <span className={checked ? '' : 'text-ink-soft line-through'}>{perm.label}</span>
+                  {fromRole && <span className="text-[10px] text-ink-muted">(rôle)</span>}
                 </label>
               );
             })}

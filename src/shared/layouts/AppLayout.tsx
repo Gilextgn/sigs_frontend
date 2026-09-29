@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { flattenNavItems } from '@/shared/components/navItems';
+import { NAV_ITEMS, flattenNavItems } from '@/shared/components/navItems';
 import { AlertTriangle, Clock, Eye } from 'lucide-react';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Topbar } from '@/shared/components/Topbar';
@@ -33,7 +33,8 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
   // Page ouverte par un lien ou une adresse sans en avoir le droit : un message clair
   // plutôt qu'un écran rempli d'erreurs du serveur.
   const page = flattenNavItems().filter((item) => item.path && item.path !== '/' && location.pathname.startsWith(item.path)).sort((a, b) => (b.path?.length ?? 0) - (a.path?.length ?? 0))[0];
-  const allowed = !page?.permission || hasPermission(page.permission);
+  const hiddenGroup = NAV_ITEMS.find((group) => group.children?.some((child) => child.code === page?.code) && user?.hidden_modules?.includes(group.code));
+  const allowed = (!page?.permission || hasPermission(page.permission)) && !user?.hidden_modules?.includes(page?.code ?? '') && !hiddenGroup;
 
   // Relances automatiques du jour : pas de tâche planifiée sur l'hébergement, c'est la
   // première visite de la journée qui les déclenche (le serveur n'envoie qu'une fois par jour).

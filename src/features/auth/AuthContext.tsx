@@ -23,6 +23,8 @@ export interface CurrentUser {
   must_change_password?: boolean;
   /** Sites du groupe scolaire accessibles : plus d'un pour le directeur d'un groupe. */
   sites?: { id: number; label: string }[];
+  /** Onglets du menu masqués pour l'école par la plateforme (codes du menu). */
+  hidden_modules?: string[];
 }
 
 export interface SuspensionInfo {

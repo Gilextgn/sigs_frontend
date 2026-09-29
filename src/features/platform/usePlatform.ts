@@ -19,6 +19,8 @@ export interface PlatformSchool {
   /** Groupe scolaire : même code sur les sites d'un même directeur. */
   group_code: string | null;
   site_label: string | null;
+  /** Onglets du menu masqués pour toute l'école. */
+  hidden_modules?: string[];
   users_count: number;
   last_login_at: string | null;
   admin: { id: number; full_name: string; email: string } | null;
@@ -127,7 +129,7 @@ export function useUpdateSchool() {
     mutationFn: async ({
       id,
       ...payload
-    }: { id: number; name?: string; subscription_due_at?: string | null; auto_suspend?: boolean; grace_days?: number; group_code?: string | null; site_label?: string | null } & SchoolContactPayload) =>
+    }: { id: number; name?: string; subscription_due_at?: string | null; auto_suspend?: boolean; grace_days?: number; group_code?: string | null; site_label?: string | null; hidden_modules?: string[] } & SchoolContactPayload) =>
       (await apiClient.put<PlatformSchoolDetail>(`/platform/schools/${id}`, payload)).data,
     onSuccess: invalidate,
   });

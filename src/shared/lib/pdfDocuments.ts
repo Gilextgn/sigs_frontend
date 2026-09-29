@@ -328,16 +328,17 @@ export async function downloadDebtorsListPdf(
 
   table(doc, {
     startY: y + 2,
-    head: [['Matricule', 'Élève', 'Classe', 'Dû', 'Payé', 'Reste']],
-    body: debtors.map((d) => [
-      d.matricule,
-      d.full_name,
-      d.class ?? '—',
-      formatCurrency(d.theoretical_amount),
-      formatCurrency(d.paid_amount),
-      formatCurrency(d.outstanding_amount),
-    ]),
-    foot: [['', '', '', '', 'Total', formatCurrency(total)]],
+    head: [['Matricule', 'Élève', 'Dû', 'Payé', 'Reste']],
+    // Une ligne de titre par classe, puis ses élèves et son sous-total.
+    body: [...new Set(debtors.map((d) => d.class ?? 'Sans classe'))].flatMap((label) => {
+      const rows = debtors.filter((d) => (d.class ?? 'Sans classe') === label);
+      return [
+        [{ content: `${label} — ${rows.length} élève(s)`, colSpan: 5, styles: { fontStyle: 'bold' as const, fillColor: LIGHT } }],
+        ...rows.map((d) => [d.matricule, d.full_name, formatCurrency(d.theoretical_amount), formatCurrency(d.paid_amount), formatCurrency(d.outstanding_amount)]),
+        [{ content: `Sous-total ${label}`, colSpan: 4, styles: { halign: 'right' as const, fontStyle: 'bold' as const } }, { content: formatCurrency(rows.reduce((sum, d) => sum + d.outstanding_amount, 0)), styles: { halign: 'right' as const, fontStyle: 'bold' as const } }],
+      ];
+    }),
+    foot: [['', '', '', 'Total', formatCurrency(total)]],
     headStyles: { fillColor: BLACK },
     footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
     styles: { fontSize: 9 },

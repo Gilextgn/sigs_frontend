@@ -25,6 +25,8 @@ export interface UserRow {
 
 export interface UserDetail extends UserRow {
   permission_overrides: string[];
+  /** Droits réels du compte : rôle + ajouts − retraits. */
+  effective_permissions?: string[];
 }
 
 export interface UserPayload {
@@ -35,6 +37,7 @@ export interface UserPayload {
   role_id: number;
   status?: 'active' | 'inactive' | 'locked';
   permissions: string[];
+  permissions_mode?: 'effective';
 }
 
 interface PaginatedUsers {

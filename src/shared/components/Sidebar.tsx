@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useSchoolSettings } from '@/features/settings/useSettings';
+import { activeSiteId } from '@/shared/lib/apiClient';
 import { useTopDebtors } from '@/features/dashboard/useDashboardData';
 import { useReEnrollmentProgress } from '@/features/students/useStudents';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -16,6 +18,14 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const { user, hasPermission, logout } = useAuth();
+  // Nom réglé par l'école dans Paramètres (celui de la console plateforme n'est qu'un repère interne),
+  // suivi du site actif pour le directeur d'un groupe scolaire.
+  const { data: settings } = useSchoolSettings();
+  const settingsName = settings?.school_name?.trim();
+  const baseName = settingsName && settingsName.toLocaleLowerCase('fr-FR') !== 'mon école' ? settingsName : (user?.school?.name ?? 'Gestion scolaire');
+  const siteId = activeSiteId();
+  const site = (user?.sites?.length ?? 0) > 1 ? user!.sites!.find((s) => s.id === siteId) ?? user!.sites!.find((s) => s.id === user?.school?.id) : undefined;
+  const schoolLabel = site ? `${baseName} · ${site.label}` : baseName;
   const location = useLocation();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -46,6 +56,8 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
     if (item.permission && !hasPermission(item.permission)) return false;
     // Écrans du groupe scolaire : seulement pour un compte qui a plusieurs sites.
     if (item.multiSite && (user?.sites?.length ?? 0) < 2) return false;
+    // Onglets masqués pour l'école par la plateforme (un groupe masqué masque tous ses onglets).
+    if (user?.hidden_modules?.includes(item.code)) return false;
     if (item.children) return item.children.some(isVisible);
     return true;
   }
@@ -159,8 +171,8 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
           {!collapsed && (
             <div className="flex min-w-0 flex-col leading-tight">
               <span className="truncate font-display text-[17px] font-bold tracking-tight text-white">SIGS</span>
-              <span className="truncate text-[11px] text-sidebar-text" title={user?.school?.name}>
-                {user?.school?.name ?? 'Gestion scolaire'}
+              <span className="truncate text-[11px] text-sidebar-text" title={schoolLabel}>
+                {schoolLabel}
               </span>
             </div>
           )}

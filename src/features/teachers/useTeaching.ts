@@ -38,8 +38,9 @@ export interface SessionRow {
   planned_minutes: number;
   realized_minutes: number;
   status: string;
-  school_class?: { label: string };
-  assignment?: { teacher?: { id: number; full_name: string }; subject?: { label: string } };
+  class_id?: number;
+  school_class?: { label: string; sort_order?: number };
+  assignment?: { teacher?: { id: number; full_name: string; level?: 'primary' | 'secondary' }; subject?: { label: string } };
   attendance?: { status: string; absence_minutes: number; reason: string | null; replacement_teacher_id: number | null } | null;
   /** Même enseignant dans une autre classe à la même heure (emploi du temps à corriger). */
   conflict?: string | null;
@@ -103,6 +104,18 @@ export function useCreateAttendance() {
       // cette invalidation, la ligne ne reflète pas l'enregistrement tant
       // que l'utilisateur ne change pas de date.
       queryClient.invalidateQueries({ queryKey: ['teaching-sessions'] });
+    },
+  });
+}
+/** Primaire : présence du maître pour toute la journée dans sa classe (tous ses cours du jour). */
+export function useSaveDayAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { teacher_id: number; class_id: number; date: string; status: string; absence_minutes?: number; reason?: string }) =>
+      (await apiClient.post('/teacher-attendances/day', payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teaching-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['teacher-attendances'] });
     },
   });
 }
