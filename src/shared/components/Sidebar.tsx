@@ -44,6 +44,8 @@ export function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) 
 
   function isVisible(item: NavItem): boolean {
     if (item.permission && !hasPermission(item.permission)) return false;
+    // Écrans du groupe scolaire : seulement pour un compte qui a plusieurs sites.
+    if (item.multiSite && (user?.sites?.length ?? 0) < 2) return false;
     if (item.children) return item.children.some(isVisible);
     return true;
   }

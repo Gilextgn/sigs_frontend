@@ -4,8 +4,10 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { formatAmount, formatDate, timeAgo } from '@/shared/lib/format';
-import { downloadReminderLettersPdf, downloadReminderListPdf } from '@/shared/lib/pdf';
-import { useLogManualReminder, useLogPaperReminders, useReminders, useSaveReminderSettings, useSendReminders, whatsappLink, type ReminderConfig, type ReminderRow } from './useReminders';
+import { downloadGeneralNoticePdf, downloadReminderListPdf } from '@/shared/lib/pdf';
+import { Modal } from '@/shared/components/Modal';
+import { useTranches } from '@/features/tranches/useTranches';
+import { useLogManualReminder, useReminders, useSaveReminderSettings, useSendReminders, whatsappLink, type ReminderConfig, type ReminderRow } from './useReminders';
 
 const HORIZONS = [
   { value: 0, label: 'Échues' },
@@ -13,7 +15,7 @@ const HORIZONS = [
   { value: 30, label: 'Échues + 30 jours' },
 ];
 
-const CHANNEL_LABELS: Record<string, string> = { email: 'E-mail', whatsapp: 'WhatsApp auto', whatsapp_manual: 'WhatsApp (manuel)', paper: 'Avis papier' };
+const CHANNEL_LABELS: Record<string, string> = { email: 'E-mail', whatsapp: 'WhatsApp auto', whatsapp_manual: 'WhatsApp (manuel)' };
 
 function dueLabel(days: number) {
   if (days < 0) return { text: `Échue depuis ${-days} j`, tone: 'bg-danger-soft text-danger' };
@@ -39,7 +41,7 @@ export default function RemindersPage() {
   const { data: settings } = useSchoolSettings();
   const sendReminders = useSendReminders();
   const logManual = useLogManualReminder();
-  const logPaper = useLogPaperReminders();
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [trancheFilter, setTrancheFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const allRows = data?.rows ?? [];
@@ -75,18 +77,6 @@ export default function RemindersPage() {
     if (!link) return;
     window.open(link, '_blank', 'noopener');
     logManual.mutate(row.student_id);
-  }
-
-  /** Avis papier : la sélection, sinon toute la liste affichée ; deux avis par feuille A4. */
-  async function printLetters() {
-    const targets = selected.size ? rows.filter((row) => selected.has(row.student_id)) : rows;
-    if (targets.length === 0) return;
-    await downloadReminderLettersPdf(
-      targets.map((row) => ({ full_name: row.full_name, matricule: row.matricule, class: row.class, guardian: row.guardian, message: row.message, items: row.items, total: row.total })),
-      settings ?? null,
-    );
-    logPaper.mutate(targets.map((row) => row.student_id));
-    setNotice({ tone: 'success', text: ` avis imprimé(s) : à remettre aux élèves. L'impression est notée dans l'historique.` });
   }
 
   function printList() {
@@ -139,8 +129,8 @@ export default function RemindersPage() {
           <button type="button" onClick={printList} disabled={rows.length === 0} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50">
             <Printer className="h-4 w-4" /> Liste d'appels
           </button>
-          <button type="button" onClick={printLetters} disabled={rows.length === 0} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50" title="Un avis par élève, deux par feuille A4, à découper et remettre">
-            <FileText className="h-4 w-4" /> Avis papier{selected.size ? ` (${selected.size})` : ''}
+          <button type="button" onClick={() => setNoticeOpen(true)} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-ink transition hover:bg-paper disabled:opacity-50" title="Avis général aux parents, deux par feuille A4 (une feuille pour deux élèves)">
+            <FileText className="h-4 w-4" /> Avis papier
           </button>
           {canConfigure && (
             <button type="button" onClick={() => setShowSettings((open) => !open)} className="flex items-center gap-2 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary-soft">
@@ -159,7 +149,8 @@ export default function RemindersPage() {
         </p>
       )}
 
-      {showSettings && data && <SettingsCard config={data.config} placeholders={data.placeholders} defaultTemplate={data.default_template} whatsappAuto={data.whatsapp_auto} onSaved={() => setShowSettings(false)} />}
+      {showSettings && data && <SettingsCard config={data.config} placeholders={data.placeholders} defaultTemplate={data.default_template} defaultNotice={data.default_notice} whatsappAuto={data.whatsapp_auto} onSaved={() => setShowSettings(false)} />}
+      {noticeOpen && data && <NoticeModal template={data.config.notice_template} rows={allRows} initialTranche={trancheFilter} initialClass={classFilter} onClose={() => setNoticeOpen(false)} />}
 
       {notice && <p className={`rounded-lg px-3 py-2 text-sm ${notice.tone === 'success' ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>}
 
@@ -284,13 +275,14 @@ export default function RemindersPage() {
 }
 
 /** Réglage du directeur : activation, délais, canaux et texte du message. */
-function SettingsCard({ config, placeholders, defaultTemplate, whatsappAuto, onSaved }: { config: ReminderConfig; placeholders: string[]; defaultTemplate: string; whatsappAuto: boolean; onSaved: () => void }) {
+function SettingsCard({ config, placeholders, defaultTemplate, defaultNotice, whatsappAuto, onSaved }: { config: ReminderConfig; placeholders: string[]; defaultTemplate: string; defaultNotice: string; whatsappAuto: boolean; onSaved: () => void }) {
   const save = useSaveReminderSettings();
   const [enabled, setEnabled] = useState(config.enabled);
   const [daysBefore, setDaysBefore] = useState(config.days_before.join(', '));
   const [overdueEvery, setOverdueEvery] = useState(config.overdue_every);
   const [channels, setChannels] = useState(config.channels);
   const [template, setTemplate] = useState(config.template);
+  const [noticeTemplate, setNoticeTemplate] = useState(config.notice_template);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => setTemplate(config.template), [config.template]);
@@ -301,7 +293,7 @@ function SettingsCard({ config, placeholders, defaultTemplate, whatsappAuto, onS
     setError(null);
     const days = [...new Set(daysBefore.split(/[,; ]+/).filter(Boolean).map(Number))].filter((d) => Number.isInteger(d) && d >= 0 && d <= 60);
     try {
-      await save.mutateAsync({ enabled, days_before: days, overdue_every: overdueEvery, channels, template });
+      await save.mutateAsync({ enabled, days_before: days, overdue_every: overdueEvery, channels, template, notice_template: noticeTemplate });
       onSaved();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -359,11 +351,111 @@ function SettingsCard({ config, placeholders, defaultTemplate, whatsappAuto, onS
       <p className="text-xs text-ink-soft">
         {'{detail}'} liste les tranches dues avec leur montant et leur échéance ; {'{montant}'} en donne le total ; {'{echeance}'} est la plus proche.
       </p>
+      <label className="block text-sm">
+        <span className="mb-1 block font-medium text-ink">Texte de l'avis papier (le même pour tous les parents)</span>
+        <textarea rows={5} maxLength={1500} value={noticeTemplate} onChange={(e) => setNoticeTemplate(e.target.value)} className={`w-full ${field}`} />
+        <span className="flex flex-wrap justify-between gap-2 text-xs text-ink-soft">
+          <span>{'{tranche}'}, {'{echeance}'} et {'{ecole}'} sont remplis à l'impression ; le montant par classe figure dans un tableau.</span>
+          <button type="button" onClick={() => setNoticeTemplate(defaultNotice)} className="text-primary hover:underline">
+            Texte par défaut
+          </button>
+        </span>
+      </label>
       <div className="flex justify-end">
         <button type="button" onClick={submit} disabled={save.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50">
           {save.isPending ? 'Enregistrement…' : 'Enregistrer les réglages'}
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * Avis papier général : le même texte pour tous, deux exemplaires par feuille.
+ * On choisit la tranche (et au besoin une classe) ; le nombre d'élèves à qui
+ * le remettre donne le nombre de feuilles (une feuille pour deux élèves).
+ */
+function NoticeModal({ template, rows, initialTranche, initialClass, onClose }: { template: string; rows: ReminderRow[]; initialTranche: string; initialClass: string; onClose: () => void }) {
+  const { data: tranches } = useTranches('');
+  const { data: settings } = useSchoolSettings();
+  const labels = [...new Set((tranches ?? []).map((t) => t.label))].sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+  const [tranche, setTranche] = useState(initialTranche);
+  const [classLabel, setClassLabel] = useState(initialClass);
+  const chosen = tranche || labels[0] || '';
+
+  const tableRows = (tranches ?? [])
+    .filter((t) => t.label === chosen && (!classLabel || t.school_class?.label === classLabel))
+    .map((t) => ({ class: t.school_class?.label ?? '—', amount: Number(t.amount), due_date: t.due_date }));
+  const dates = [...new Set(tableRows.map((row) => row.due_date).filter(Boolean))] as string[];
+  const dueText = dates.length === 1 ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(`${dates[0].slice(0, 10)}T00:00:00`)) : 'indiquée dans le tableau ci-dessous';
+  const classOptions = [...new Set((tranches ?? []).filter((t) => t.label === chosen).map((t) => t.school_class?.label ?? '—'))];
+
+  // Élèves concernés d'après la liste des relances : point de départ, modifiable.
+  const concerned = rows.filter((row) => row.items.some((item) => item.label === chosen) && (!classLabel || row.class === classLabel)).length;
+  const [students, setStudents] = useState<number | null>(null);
+  const count = students ?? concerned;
+  const pages = Math.max(1, Math.ceil(count / 2));
+
+  const filled = template
+    .replaceAll('{tranche}', chosen || 'tranche')
+    .replaceAll('{echeance}', dueText)
+    .replaceAll('{ecole}', settings?.school_name ?? '');
+  const [text, setText] = useState<string | null>(null);
+  const finalText = text ?? filled;
+  const field = 'w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink';
+
+  return (
+    <Modal title="Avis papier aux parents" onClose={onClose} widthClassName="max-w-2xl">
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-ink">Tranche</span>
+            <select value={chosen} onChange={(e) => { setTranche(e.target.value); setClassLabel(''); setText(null); setStudents(null); }} className={field}>
+              {labels.map((label) => (
+                <option key={label} value={label}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-ink">Classe</span>
+            <select value={classLabel} onChange={(e) => { setClassLabel(e.target.value); setText(null); setStudents(null); }} className={field}>
+              <option value="">Toutes</option>
+              {classOptions.map((label) => (
+                <option key={label} value={label}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-medium text-ink">Élèves à qui le remettre</span>
+            <input type="number" min={1} value={count} onChange={(e) => setStudents(Math.max(1, Number(e.target.value) || 1))} className={field} />
+          </label>
+        </div>
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-ink">Texte de l'avis (modifiable pour cette impression)</span>
+          <textarea rows={6} value={finalText} onChange={(e) => setText(e.target.value)} className={field} />
+        </label>
+        {tableRows.length > 0 && (
+          <p className="text-xs text-ink-soft">
+            Tableau imprimé sous le texte : {tableRows.map((row) => `${row.class} ${formatAmount(row.amount)}`).join(' · ')}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-paper px-3 py-2 text-sm">
+          <span className="text-ink">
+            <strong>{pages}</strong> feuille(s) A4 pour {count} élève(s) — deux avis par feuille, à couper au pointillé.
+          </span>
+          <button
+            type="button"
+            disabled={!chosen}
+            onClick={async () => {
+              await downloadGeneralNoticePdf({ text: finalText, rows: tableRows }, pages, settings ?? null);
+              onClose();
+            }}
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" /> Imprimer
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

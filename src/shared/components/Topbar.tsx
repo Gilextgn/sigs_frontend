@@ -15,6 +15,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { SITE_STORAGE_KEY, activeSiteId } from '@/shared/lib/apiClient';
 import { useTheme } from '@/shared/lib/ThemeContext';
 import { useActiveYear, useTopDebtors } from '@/features/dashboard/useDashboardData';
 import { usePaymentDesk } from '@/features/payments/PaymentDesk';
@@ -67,6 +68,21 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
   const notifRef = useClickOutside(() => setNotifOpen(false));
   const profileRef = useClickOutside(() => setProfileOpen(false));
+
+  // Groupe scolaire : le directeur choisit le site sur lequel il travaille.
+  const sites = user?.sites ?? [];
+  const storedSite = activeSiteId();
+  const activeSite = sites.some((site) => site.id === storedSite) ? storedSite! : (user?.school?.id ?? sites[0]?.id ?? 0);
+  function switchSite(siteId: number) {
+    try {
+      localStorage.setItem(SITE_STORAGE_KEY, String(siteId));
+    } catch {
+      // Stockage indisponible : on reste sur le site actuel.
+      return;
+    }
+    // Tout l'écran doit repartir des données du nouveau site.
+    window.location.reload();
+  }
 
   const trail = findBreadcrumbTrail(location.pathname);
   const initials = (user?.full_name ?? '?')
@@ -129,6 +145,22 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
         {/* Droite : recherche, thème, notifications, profil */}
         <div className="flex shrink-0 items-center gap-1.5">
           <GlobalSearch />
+
+          {sites.length > 1 && (
+            <select
+              value={activeSite}
+              onChange={(e) => switchSite(Number(e.target.value))}
+              aria-label="Site"
+              title="Changer de site"
+              className="max-w-[170px] rounded-lg border border-primary/40 bg-primary-soft/40 px-2 py-1.5 text-xs font-semibold text-ink"
+            >
+              {sites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.label}
+                </option>
+              ))}
+            </select>
+          )}
 
           {activeYear && (
             <span
@@ -218,7 +250,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
                               <span className="min-w-0">
                                 <span className="block font-semibold text-ink">{item.title}</span>
                                 {item.body && <span className="block text-xs text-ink-soft">{item.body}</span>}
-                                <span className="block text-[11px] text-ink-muted">{timeAgo(item.created_at)}</span>
+                                <span className="block text-[11px] text-ink-muted">{item.site ? ` · ` : ''}{timeAgo(item.created_at)}</span>
                               </span>
                             </button>
                           </li>

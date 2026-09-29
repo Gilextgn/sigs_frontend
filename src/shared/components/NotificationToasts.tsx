@@ -36,7 +36,7 @@ export function NotificationToasts({
       // Premier chargement : pas un message par notification ancienne, un résumé.
       seen.current = new Set(notifications.map((n) => n.id));
       if (unread > 0) {
-        setToasts([{ key: 'summary', title: `${unread} action(s) de caisse non lue(s)`, body: 'Faites par vos collaborateurs depuis votre dernière visite.', notificationId: null }]);
+        setToasts([{ key: 'summary', title: `${unread} notification(s) non lue(s)`, body: 'Actions de caisse et changements sensibles faits par vos collaborateurs depuis votre dernière visite.', notificationId: null }]);
       }
       return;
     }
@@ -44,7 +44,7 @@ export function NotificationToasts({
     const fresh = notifications.filter((n) => !seen.current!.has(n.id) && !n.read_at);
     fresh.forEach((n) => seen.current!.add(n.id));
     if (fresh.length > 0) {
-      setToasts((current) => [...fresh.slice(0, 3).map((n) => ({ key: String(n.id), title: n.title, body: n.body, notificationId: n.id })), ...current].slice(0, 4));
+      setToasts((current) => [...fresh.slice(0, 3).map((n) => ({ key: String(n.id), title: n.site ? `[${n.site}] ${n.title}` : n.title, body: n.body, notificationId: n.id })), ...current].slice(0, 4));
     }
   }, [notifications, unread]);
 

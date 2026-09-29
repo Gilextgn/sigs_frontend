@@ -18,6 +18,8 @@ export interface SchoolClassRow {
   /** Classe dédoublée : groupe (CE1 B) rattaché à sa classe principale (CE1 A). */
   parent_class_id: number | null;
   parent?: { id: number; label: string } | null;
+  /** Élèves actifs de la classe (écran Élèves). */
+  students_count?: number;
 }
 
 export interface ClassPayload {

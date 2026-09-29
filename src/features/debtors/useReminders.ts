@@ -7,6 +7,8 @@ export interface ReminderConfig {
   overdue_every: number;
   channels: ('email' | 'whatsapp')[];
   template: string;
+  /** Avis papier général : {tranche}, {echeance}, {ecole}. */
+  notice_template: string;
   last_auto_run: string | null;
 }
 
@@ -32,7 +34,7 @@ export interface ReminderRow {
 export interface ReminderHistoryRow {
   id: number;
   student: string | null;
-  channel: 'email' | 'whatsapp' | 'whatsapp_manual' | 'paper';
+  channel: 'email' | 'whatsapp' | 'whatsapp_manual';
   status: 'sent' | 'failed';
   error: string | null;
   amount: number;
@@ -45,6 +47,7 @@ export interface RemindersData {
   whatsapp_auto: boolean;
   placeholders: string[];
   default_template: string;
+  default_notice: string;
   rows: ReminderRow[];
   history: ReminderHistoryRow[];
 }
@@ -82,15 +85,6 @@ export function useLogManualReminder() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: async (studentId: number) => apiClient.post(`/reminders/${studentId}/manual`),
-    onSuccess: invalidate,
-  });
-}
-
-/** Avis papier imprimés : tracés dans l'historique des relances. */
-export function useLogPaperReminders() {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: async (studentIds: number[]) => apiClient.post('/reminders/paper', { student_ids: studentIds }),
     onSuccess: invalidate,
   });
 }

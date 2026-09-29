@@ -8,10 +8,13 @@ import { useMarkPayrollPaid, usePayrollEntries, type PayrollEntryRow } from './u
 import { PayrollFormModal } from './PayrollFormModal';
 import { PayrollDetailModal } from './PayrollDetailModal';
 import { AnnualSummaryModal } from './AnnualSummaryModal';
+import { useAuth } from '@/features/auth/AuthContext';
 import { currency } from '@/shared/lib/format';
 
 
 export default function PayrollPage() {
+  // Consultation pour tous ; créer une fiche ou la marquer payée demande « gérer les enseignants ».
+  const canManage = useAuth().hasPermission('teachers.manage');
   const [period, setPeriod] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -42,10 +45,10 @@ export default function PayrollPage() {
           <FileText className="h-4 w-4" />
           Récapitulatif annuel
         </button>
-        <button onClick={() => setModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
+        {canManage && <button onClick={() => setModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
           <Plus className="h-4 w-4" />
           Nouvelle fiche
-        </button>
+        </button>}
         </div>
       </div>
 
@@ -95,7 +98,7 @@ export default function PayrollPage() {
                         <Eye className="h-3.5 w-3.5" />
                         Détail
                       </button>
-                      {entry.status === 'pending' && (
+                      {canManage && entry.status === 'pending' && (
                         <button
                           onClick={() => setToMarkPaid(entry)}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-success transition hover:bg-success-soft"

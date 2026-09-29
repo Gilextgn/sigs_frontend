@@ -399,7 +399,7 @@ export interface CashPointData {
   by_cashier: { full_name: string | null; payment_count: number; total_amount: number }[];
   by_line: { label: string; total_amount: number }[];
   cancellations: { reference_code: string; student: string | null; total_paid_amount: number; deleted_at: string; deleted_by: string | null; reason: string | null }[];
-  closings: { closing_date: string; cashier: string | null; expected_amount: number; counted_amount: number; difference: number; reopened_at: string | null }[];
+  handovers: { created_at: string; cashier: string | null; received_by: string | null; expected_amount: number; received_amount: number; difference: number }[];
 }
 
 type AutoTableDoc = jsPDF & { lastAutoTable?: { finalY?: number } };
@@ -486,20 +486,20 @@ export async function downloadCashPointPdf(report: CashPointData, periodLabel: s
     });
   }
 
-  if (report.closings.length > 0) {
+  if (report.handovers.length > 0) {
     table(doc, {
       ...tableDefaults,
       startY: next(),
-      head: [['Clôture', 'Caissier', 'Attendu', 'Compté', 'Écart', 'État']],
-      body: report.closings.map((row) => [
-        shortDate(row.closing_date),
+      head: [['Remise du', 'Remis par', 'Reçu par', 'Attendu', 'Reçu', 'Écart']],
+      body: report.handovers.map((row) => [
+        shortDate(row.created_at),
         row.cashier ?? '—',
+        row.received_by ?? '—',
         formatCurrency(row.expected_amount),
-        formatCurrency(row.counted_amount),
+        formatCurrency(row.received_amount),
         formatCurrency(row.difference),
-        row.reopened_at ? 'Rouverte' : 'Clôturée',
       ]),
-      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
     });
   }
 
@@ -645,36 +645,30 @@ export async function downloadTeacherAnnualSummaryPdf(summary: TeacherAnnualSumm
   doc.save(`recap-paie-${summary.school_year}-${summary.teacher.full_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
 }
 
-export interface ReminderLetterData {
-  full_name: string;
-  matricule: string;
-  class: string | null;
-  guardian: string | null;
-  message: string;
-  items: { label: string; remaining: number; due_date: string }[];
-  total: number;
+export interface GeneralNoticeData {
+  /** Texte de l'avis, déjà rempli ({tranche}, {echeance}, {ecole} remplacés). */
+  text: string;
+  /** Montant et échéance de la tranche, par classe. */
+  rows: { class: string; amount: number; due_date: string | null }[];
 }
 
 /**
- * Avis de relance papier, à remettre aux élèves : deux avis par feuille A4
- * (on coupe au pointillé), en noir et blanc, avec l'en-tête de l'école, le
- * message du directeur, les tranches dues et la signature.
+ * Avis général aux parents : le même texte pour tous, imprimé deux fois sur
+ * la même feuille A4 (on coupe au pointillé), donc une feuille pour deux
+ * élèves. Noir et blanc, en-tête de l'école, signature du directeur.
  */
-export async function downloadReminderLettersPdf(letters: ReminderLetterData[], settings: LetterheadInfo | null) {
+export async function downloadGeneralNoticePdf(notice: GeneralNoticeData, pages: number, settings: LetterheadInfo | null) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const half = doc.internal.pageSize.getHeight() / 2;
-  const shortDate = (value: string) => new Intl.DateTimeFormat('fr-FR').format(new Date(`${value}T00:00:00`));
+  const shortDate = (value: string | null) => (value ? new Intl.DateTimeFormat('fr-FR').format(new Date(`${value.slice(0, 10)}T00:00:00`)) : '—');
   const today = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date());
-  // L'en-tête est chargé une fois, puis reproduit sur chaque avis.
+  // L'en-tête est chargé une fois, puis reproduit sur chaque exemplaire.
   const letterheadData = settings?.letterhead_url ? await loadImageAsDataUrl(settings.letterhead_url) : null;
   const letterhead = letterheadData ? await createRectangularLetterhead(letterheadData) : null;
 
-  letters.forEach((letter, index) => {
-    const top = index % 2 === 0 ? 0 : half;
-    if (index > 0 && index % 2 === 0) doc.addPage();
+  const drawCopy = (top: number) => {
     let y = top + 10;
-
     if (letterhead) {
       try {
         doc.addImage(letterhead, 'PNG', 15, y, pageWidth - 30, 18, undefined, 'FAST');
@@ -693,52 +687,121 @@ export async function downloadReminderLettersPdf(letters: ReminderLetterData[], 
     }
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(13);
     doc.setTextColor(...INK);
-    doc.text('AVIS DE RELANCE — FRAIS DE SCOLARITÉ', 15, y + 4);
+    doc.text("AVIS AUX PARENTS D'ÉLÈVES", pageWidth / 2, y + 5, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Le ${today}`, pageWidth - 15, y + 4, { align: 'right' });
-    y += 9;
-    doc.text(`Élève : ${letter.full_name} (${letter.matricule}) · Classe : ${letter.class ?? '—'}`, 15, y);
-    y += 5;
-    doc.text(`À l'attention de : ${letter.guardian ?? 'Madame, Monsieur'}`, 15, y);
-    y += 6;
+    doc.text(`Le ${today}`, pageWidth - 15, y + 11, { align: 'right' });
+    y += 16;
 
-    // Le message du directeur, sans la liste des tranches (reprise dans le tableau).
-    const body = letter.message.split('\n').filter((line) => !line.trim().startsWith('- ')).join('\n');
-    doc.setFontSize(9);
-    const lines = doc.splitTextToSize(body, pageWidth - 30);
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(notice.text, pageWidth - 30);
     doc.text(lines, 15, y);
-    y += lines.length * 4 + 2;
+    y += lines.length * 4.6 + 2;
 
-    table(doc, {
-      startY: y,
-      margin: { left: 15, right: 15 },
-      head: [['Tranche', 'Échéance', 'Reste à payer']],
-      body: letter.items.map((item) => [item.label, shortDate(item.due_date), `${formatCurrency(item.remaining)} XOF`]),
-      foot: [['Total', '', `${formatCurrency(letter.total)} XOF`]],
-      footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
-      styles: { fontSize: 8.5, cellPadding: 1.5 },
-      columnStyles: { 2: { halign: 'right' } },
-      pageBreak: 'avoid',
-    });
+    if (notice.rows.length > 0) {
+      table(doc, {
+        startY: y,
+        margin: { left: 15, right: 15 },
+        head: [['Classe', 'Montant de la tranche', 'Échéance']],
+        body: notice.rows.map((row) => [row.class, `${formatCurrency(row.amount)} XOF`, shortDate(row.due_date)]),
+        styles: { fontSize: 8.5, cellPadding: 1.3 },
+        columnStyles: { 1: { halign: 'right' } },
+        pageBreak: 'avoid',
+      });
+      y = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y;
+    }
 
-    const signY = Math.min(((doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 8, top + half - 22);
+    const signY = Math.min(y + 8, top + half - 22);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.text('Le Directeur', pageWidth - 15, signY, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
     doc.setLineWidth(0.2);
     doc.line(pageWidth - 70, signY + 13, pageWidth - 15, signY + 13);
+  };
 
-    // Pointillé de découpe entre les deux avis d'une feuille.
-    if (index % 2 === 0) {
-      doc.setLineDashPattern([2, 2], 0);
-      doc.line(10, half, pageWidth - 10, half);
-      doc.setLineDashPattern([], 0);
-    }
+  for (let page = 0; page < Math.max(1, pages); page += 1) {
+    if (page > 0) doc.addPage();
+    drawCopy(0);
+    drawCopy(half);
+    // Pointillé de découpe entre les deux exemplaires.
+    doc.setLineDashPattern([2, 2], 0);
+    doc.line(10, half, pageWidth - 10, half);
+    doc.setLineDashPattern([], 0);
+  }
+
+  doc.save(`avis-parents-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+export interface HandoverSlipData {
+  id: number;
+  cashier: string | null;
+  received_by: string | null;
+  created_at: string;
+  payment_count: number;
+  expected_amount: number;
+  received_amount: number;
+  difference: number;
+  note: string | null;
+  payments: { reference_code: string; payment_date: string; student: string | null; class: string | null; amount: number }[];
+}
+
+/**
+ * Bordereau de remise de caisse : ce que le caissier remet au directeur,
+ * paiement par paiement, le montant reçu, l'écart, et les deux signatures.
+ */
+export async function downloadHandoverPdf(slip: HandoverSlipData, settings: LetterheadInfo | null) {
+  const doc: jsPDF & { lastAutoTable?: { finalY?: number } } = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const shortDate = (value: string) => new Intl.DateTimeFormat('fr-FR').format(new Date(value));
+  let y = await addLetterhead(doc, settings);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(...INK);
+  doc.text(`Bordereau de remise de caisse n° ${slip.id}`, 15, y);
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(slip.created_at))}`, 15, y);
+  y += 5;
+  doc.text(`Remis par : ${slip.cashier ?? '—'} · Reçu par : ${slip.received_by ?? '—'}`, 15, y);
+
+  table(doc, {
+    startY: y + 5,
+    head: [['Référence', 'Date', 'Élève', 'Classe', 'Montant']],
+    body: slip.payments.map((p) => [p.reference_code, shortDate(p.payment_date), p.student ?? '—', p.class ?? '—', formatCurrency(p.amount)]),
+    foot: [
+      [{ content: `Total attendu (${slip.payment_count} paiement(s))`, colSpan: 4 }, formatCurrency(slip.expected_amount)],
+      [{ content: 'Montant reçu', colSpan: 4 }, formatCurrency(slip.received_amount)],
+      [{ content: 'Écart', colSpan: 4 }, formatCurrency(slip.difference)],
+    ],
+    footStyles: { fillColor: LIGHT, textColor: INK, fontStyle: 'bold' },
+    styles: { fontSize: 9 },
+    columnStyles: { 4: { halign: 'right' } },
   });
 
-  doc.save(`avis-relance-${new Date().toISOString().slice(0, 10)}.pdf`);
+  let endY = (doc.lastAutoTable?.finalY ?? y) + 8;
+  if (slip.note) {
+    doc.setFontSize(9);
+    doc.text(doc.splitTextToSize(`Observation : ${slip.note}`, pageWidth - 30), 15, endY);
+    endY += 10;
+  }
+
+  endY = Math.max(endY + 10, pageHeight - 50);
+  if (endY > pageHeight - 30) {
+    doc.addPage();
+    endY = 30;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Remis par (caissier)', 15, endY);
+  doc.text('Reçu par (directeur)', pageWidth - 15, endY, { align: 'right' });
+  doc.setLineWidth(0.2);
+  doc.line(15, endY + 22, 80, endY + 22);
+  doc.line(pageWidth - 80, endY + 22, pageWidth - 15, endY + 22);
+
+  doc.save(`bordereau-remise-${slip.id}.pdf`);
 }

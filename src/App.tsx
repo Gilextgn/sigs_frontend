@@ -17,7 +17,9 @@ const PlatformAccountPage = lazyPage(() => import('@/features/platform/PlatformA
 const LoginPage = lazyPage(() => import('@/features/auth/LoginPage'));
 const DashboardPage = lazyPage(() => import('@/features/dashboard/DashboardPage'));
 const StatisticsPage = lazyPage(() => import('@/features/dashboard/StatisticsPage'));
+const SitesOverviewPage = lazyPage(() => import('@/features/dashboard/SitesOverviewPage'));
 const StudentsPage = lazyPage(() => import('@/features/students/StudentsPage'));
+const ClassStudentsPage = lazyPage(() => import('@/features/students/ClassStudentsPage'));
 const ClassesPage = lazyPage(() => import('@/features/classes/ClassesPage'));
 const TranchesPage = lazyPage(() => import('@/features/tranches/TranchesPage'));
 const FeesPage = lazyPage(() => import('@/features/fees/FeesPage'));
@@ -109,9 +111,11 @@ function AppRoutes() {
           <Route element={<RequireSchool />}>
             <Route element={<AppLayout />}>
               <Route path="/statistics" element={<StatisticsPage />} />
+              <Route path="/sites" element={<SitesOverviewPage />} />
               <Route path="/rentree" element={<RentreePage />} />
               <Route path="/year-closing" element={<YearClosingPage />} />
               <Route path="/students" element={<StudentsPage />} />
+              <Route path="/students/class/:classId" element={<ClassStudentsPage />} />
               <Route path="/classes" element={<ClassesPage />} />
               <Route path="/tranches" element={<TranchesPage />} />
               <Route path="/fees" element={<FeesPage />} />

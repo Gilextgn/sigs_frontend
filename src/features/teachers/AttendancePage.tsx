@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCcw, X } from 'luci
 import { SkeletonTableRows } from '@/shared/components/Skeleton';
 import { useCreateAttendance, useGenerateSessions, useSessions } from './useTeaching';
 import { hhmm } from './timetable';
+import { useAuth } from '@/features/auth/AuthContext';
 
 const statusOptions = [
   { value: 'present', label: 'Présent' },
@@ -35,6 +36,8 @@ function NoticeBanner({
 }
 
 export default function AttendancePage() {
+  // Sans « gérer les enseignants » : consultation seule (pas de génération ni d'enregistrement).
+  const canManage = useAuth().hasPermission('teachers.manage');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [statuses, setStatuses] = useState<Record<number, string>>({});
   const [absenceMinutes, setAbsenceMinutes] = useState<Record<number, number>>({});
@@ -123,10 +126,12 @@ export default function AttendancePage() {
         <div><p className="text-xs font-medium tracking-wide text-primary uppercase">Suivi des cours</p><h1 className="mt-1 font-display text-2xl font-semibold text-ink">Présence des enseignants</h1><p className="mt-1 text-sm text-ink-soft">Un statut par séance. Retard : les minutes sont déduites de la paie. Absent justifié : le motif est obligatoire.</p></div>
         <div className="flex items-center gap-2">
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink" />
+          {canManage && (
           <button type="button" onClick={generateForSelectedDate} disabled={generateSessions.isPending} className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary/5 px-3 py-2 text-xs font-medium text-primary disabled:opacity-50">
             <RefreshCcw className={`h-3.5 w-3.5 ${generateSessions.isPending ? 'animate-spin' : ''}`} />
             {generateSessions.isPending ? 'Génération...' : 'Générer les séances'}
           </button>
+          )}
         </div>
       </div>
       {notice && <NoticeBanner type={notice.type} message={notice.message} onClose={() => setNotice(null)} />}
@@ -166,7 +171,7 @@ export default function AttendancePage() {
                             <button
                               key={option.value}
                               type="button"
-                              disabled={isSaved}
+                              disabled={isSaved || !canManage}
                               onClick={() => {
                                 setStatuses((current) => ({ ...current, [session.id]: option.value }));
                                 markDirty(session.id);
@@ -219,7 +224,9 @@ export default function AttendancePage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {isSaved ? (
+                    {!canManage ? (
+                      <span className="text-xs text-ink-soft">{session.attendance ? 'Enregistré' : 'Non saisi'}</span>
+                    ) : isSaved ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-success-soft px-3 py-1.5 text-xs font-medium text-success">
                         <CheckCircle2 className="h-3.5 w-3.5" /> Enregistré
                       </span>

@@ -10,6 +10,8 @@ export interface AdminNotificationRow {
   entity_id: string | null;
   read_at: string | null;
   created_at: string;
+  /** Site d'origine (directeur d'un groupe scolaire). */
+  site?: string | null;
 }
 
 /**

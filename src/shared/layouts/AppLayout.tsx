@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { flattenNavItems } from '@/shared/components/navItems';
 import { AlertTriangle, Clock, Eye } from 'lucide-react';
 import { Sidebar } from '@/shared/components/Sidebar';
 import { Topbar } from '@/shared/components/Topbar';
@@ -28,6 +29,11 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, user, hasPermission } = useAuth();
+  const location = useLocation();
+  // Page ouverte par un lien ou une adresse sans en avoir le droit : un message clair
+  // plutôt qu'un écran rempli d'erreurs du serveur.
+  const page = flattenNavItems().filter((item) => item.path && item.path !== '/' && location.pathname.startsWith(item.path)).sort((a, b) => (b.path?.length ?? 0) - (a.path?.length ?? 0))[0];
+  const allowed = !page?.permission || hasPermission(page.permission);
 
   // Relances automatiques du jour : pas de tâche planifiée sur l'hébergement, c'est la
   // première visite de la journée qui les déclenche (le serveur n'envoie qu'une fois par jour).
@@ -105,7 +111,7 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
           )}
           {/* Seule cette zone défile — le footer ci-dessous reste fixe en bas d'écran. */}
           <main className="scrollbar-thin flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            {children ?? <Outlet />}
+            {allowed ? (children ?? <Outlet />) : <AccessDenied />}
           </main>
           <AppFooter />
         </div>
@@ -141,5 +147,17 @@ export function AppLayout({ children }: AppLayoutProps = {}) {
         )}
       </div>
     </PaymentDeskProvider>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <div className="mx-auto mt-16 max-w-md rounded-xl border border-border bg-surface p-6 text-center">
+      <p className="font-display text-lg font-semibold text-ink">Page non accessible</p>
+      <p className="mt-2 text-sm text-ink-soft">Votre compte n'a pas le droit d'ouvrir cette page. Si vous en avez besoin, demandez à l'administrateur de vous l'accorder.</p>
+      <Link to="/" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary no-underline">
+        Retour à l'accueil
+      </Link>
+    </div>
   );
 }

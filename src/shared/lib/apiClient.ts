@@ -31,6 +31,24 @@ export async function ensureCsrfCookie(): Promise<void> {
   });
 }
 
+/** Site choisi par le directeur d'un groupe scolaire (le serveur ignore un site non autorisé). */
+export const SITE_STORAGE_KEY = 'sigs:site';
+
+export function activeSiteId(): number | null {
+  try {
+    const value = Number(localStorage.getItem(SITE_STORAGE_KEY));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+apiClient.interceptors.request.use((config) => {
+  const siteId = activeSiteId();
+  if (siteId) config.headers.set('X-Site-Id', String(siteId));
+  return config;
+});
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -1,12 +1,12 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Ban, CheckCircle2, Download, Lock, LockOpen, Receipt, Wallet } from 'lucide-react';
+import { Ban, Download, HandCoins, Printer, Receipt, Wallet } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useSchoolSettings } from '@/features/settings/useSettings';
 import { Modal } from '@/shared/components/Modal';
 import { getApiErrorMessage } from '@/shared/lib/apiError';
 import { formatAmount, formatDate, formatTime } from '@/shared/lib/format';
-import { downloadCashPointPdf } from '@/shared/lib/pdf';
-import { useCashReport, useCloseCash, useReopenCash, type CashClosingRow } from './useCash';
+import { downloadCashPointPdf, downloadHandoverPdf } from '@/shared/lib/pdf';
+import { fetchHandover, useCashReport, usePendingHandovers, useReceiveCash, type PendingCash, type PendingHandoverRow } from './useCash';
 
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
@@ -59,8 +59,6 @@ export default function CashPointPage() {
 
   const { data: report, isLoading, isError } = useCashReport(from, to);
   const { data: settings } = useSchoolSettings();
-  const [closeOpen, setCloseOpen] = useState(false);
-  const [toReopen, setToReopen] = useState<CashClosingRow | null>(null);
   const [exporting, setExporting] = useState(false);
 
   async function handleExport() {
@@ -73,7 +71,10 @@ export default function CashPointPage() {
     }
   }
 
-  const myDay = report?.my_day;
+  /** Bordereau de remise : liste des paiements remis, montants et signatures. */
+  async function printHandover(id: number) {
+    await downloadHandoverPdf(await fetchHandover(id), settings ?? null);
+  }
 
   return (
     <div className="space-y-5">
@@ -114,27 +115,7 @@ export default function CashPointPage() {
 
       {isError && <p className="rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">Impossible de charger le point de caisse.</p>}
 
-      {myDay && hasPermission('cash.close') && (
-        <div className={`${card} flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center`}>
-          <div className="flex items-center gap-3">
-            <span className={`grid h-10 w-10 place-items-center rounded-full ${myDay.closed ? 'bg-success/10 text-success' : 'bg-gold-soft text-gold'}`}>
-              {myDay.closed ? <Lock className="h-5 w-5" /> : <Wallet className="h-5 w-5" />}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-ink">Ma caisse du jour {myDay.closed && '· clôturée'}</p>
-              <p className="text-sm text-ink-soft">
-                {myDay.payment_count} paiement(s) · <span className="font-tabular">{formatAmount(myDay.expected_amount)}</span> attendus en caisse
-              </p>
-            </div>
-          </div>
-          {!myDay.closed && (
-            <button type="button" onClick={() => setCloseOpen(true)} className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
-              <Lock className="h-4 w-4" />
-              Clôturer ma caisse
-            </button>
-          )}
-        </div>
-      )}
+      <HandoverPanel myPending={report?.my_pending} canReceive={hasPermission('cash.receive')} onPrint={printHandover} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat icon={<Wallet className="h-4 w-4 text-primary" />} label="Total encaissé" value={isLoading ? '—' : formatAmount(report?.total_amount)} />
@@ -195,46 +176,38 @@ export default function CashPointPage() {
         </div>
       </div>
 
-      {(report?.closings.length ?? 0) > 0 && (
+      {(report?.handovers.length ?? 0) > 0 && (
         <section className={`${card} overflow-hidden`}>
-          <h3 className="border-b border-border px-4 py-3 font-display text-base font-semibold text-ink">Clôtures</h3>
+          <h3 className="border-b border-border px-4 py-3 font-display text-base font-semibold text-ink">Remises de caisse de la période</h3>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="bg-paper text-xs font-medium tracking-wide text-ink-soft uppercase">
                 <tr>
                   <th className={th}>Date</th>
-                  <th className={th}>Caissier</th>
+                  <th className={th}>Remis par</th>
+                  <th className={th}>Reçu par</th>
                   <th className={`${th} text-right`}>Attendu</th>
-                  <th className={`${th} text-right`}>Compté</th>
+                  <th className={`${th} text-right`}>Reçu</th>
                   <th className={`${th} text-right`}>Écart</th>
-                  <th className={th}>État</th>
                   <th className={th} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {report?.closings.map((closing) => (
-                  <tr key={closing.id}>
-                    <td className="px-4 py-2.5 whitespace-nowrap text-ink">{formatDate(closing.closing_date)} <span className="text-xs text-ink-soft">à {formatTime(closing.closed_at)}</span></td>
-                    <td className="px-4 py-2.5 text-ink-soft">{closing.cashier ?? '—'}</td>
-                    <td className="font-tabular px-4 py-2.5 text-right text-ink">{formatAmount(closing.expected_amount)}</td>
-                    <td className="font-tabular px-4 py-2.5 text-right text-ink">{formatAmount(closing.counted_amount)}</td>
-                    <td className={`font-tabular px-4 py-2.5 text-right font-medium ${closing.difference === 0 ? 'text-success' : 'text-danger'}`}>
-                      {closing.difference > 0 ? '+' : ''}{formatAmount(closing.difference)}
-                      {closing.note && <span className="block text-xs font-normal text-ink-soft">{closing.note}</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-ink-soft">
-                      {closing.reopened_at ? (
-                        <span title={closing.reopen_reason ?? ''}>Rouverte par {closing.reopened_by ?? '—'}<span className="block text-xs">{closing.reopen_reason}</span></span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="h-3.5 w-3.5" /> Clôturée</span>
-                      )}
+                {report?.handovers.map((handover) => (
+                  <tr key={handover.id}>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-ink">{formatDate(handover.created_at)} <span className="text-xs text-ink-soft">à {formatTime(handover.created_at)}</span></td>
+                    <td className="px-4 py-2.5 text-ink-soft">{handover.cashier ?? '—'}<span className="block text-xs">{handover.payment_count} paiement(s)</span></td>
+                    <td className="px-4 py-2.5 text-ink-soft">{handover.received_by ?? '—'}</td>
+                    <td className="font-tabular px-4 py-2.5 text-right text-ink">{formatAmount(handover.expected_amount)}</td>
+                    <td className="font-tabular px-4 py-2.5 text-right text-ink">{formatAmount(handover.received_amount)}</td>
+                    <td className={`font-tabular px-4 py-2.5 text-right font-medium ${handover.difference === 0 ? 'text-success' : 'text-danger'}`}>
+                      {handover.difference > 0 ? '+' : ''}{formatAmount(handover.difference)}
+                      {handover.note && <span className="block text-xs font-normal text-ink-soft">{handover.note}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {!closing.reopened_at && hasPermission('cash.reopen') && (
-                        <button type="button" onClick={() => setToReopen(closing)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper hover:text-ink">
-                          <LockOpen className="h-3.5 w-3.5" /> Rouvrir
-                        </button>
-                      )}
+                      <button type="button" onClick={() => printHandover(handover.id)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper hover:text-ink">
+                        <Printer className="h-3.5 w-3.5" /> Bordereau
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -274,8 +247,6 @@ export default function CashPointPage() {
         </section>
       )}
 
-      {closeOpen && myDay && <CloseCashModal expected={myDay.expected_amount} count={myDay.payment_count} onClose={() => setCloseOpen(false)} />}
-      {toReopen && <ReopenModal closing={toReopen} onClose={() => setToReopen(null)} />}
     </div>
   );
 }
@@ -309,75 +280,133 @@ function SummaryList({ title, rows }: { title: string; rows: { key: string; labe
   );
 }
 
+
 const inputClass = 'mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink';
 
-function CloseCashModal({ expected, count, onClose }: { expected: number; count: number; onClose: () => void }) {
-  const closeCash = useCloseCash();
-  const [counted, setCounted] = useState('');
+function sinceLabel(pending: PendingCash) {
+  if (!pending.first_date) return '';
+  return pending.first_date === pending.last_date ? `du ${formatDate(pending.first_date)}` : `du ${formatDate(pending.first_date)} au ${formatDate(pending.last_date!)}`;
+}
+
+/**
+ * Remise de caisse : chaque caissier voit l'argent qu'il a en main (encaissé
+ * depuis sa dernière remise) ; le directeur voit ce que chacun doit lui
+ * remettre et enregistre ce qu'il reçoit.
+ */
+function HandoverPanel({ myPending, canReceive, onPrint }: { myPending?: PendingCash; canReceive: boolean; onPrint: (id: number) => void }) {
+  const { data: pending } = usePendingHandovers(canReceive);
+  const [receiving, setReceiving] = useState<PendingHandoverRow | null>(null);
+
+  return (
+    <>
+      {myPending && myPending.payment_count > 0 && !canReceive && (
+        <div className={`${card} flex items-center gap-3 p-4`}>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-gold-soft text-gold">
+            <Wallet className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-ink">
+              Argent à remettre au directeur : <span className="font-tabular">{formatAmount(myPending.expected_amount)}</span>
+            </p>
+            <p className="text-sm text-ink-soft">
+              {myPending.payment_count} paiement(s) encaissé(s) {sinceLabel(myPending)}, depuis votre dernière remise.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {canReceive && (
+        <section className={`${card} overflow-hidden`}>
+          <h3 className="flex items-center gap-2 border-b border-border px-4 py-3 font-display text-base font-semibold text-ink">
+            <HandCoins className="h-4 w-4 text-primary" /> Caisses à recevoir
+          </h3>
+          {(pending ?? []).length === 0 ? (
+            <p className="px-4 py-5 text-sm text-ink-soft">Tout l'argent encaissé vous a été remis.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pending!.map((row) => (
+                <li key={row.cashier_id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div>
+                    <p className="font-medium text-ink">{row.cashier}</p>
+                    <p className="text-xs text-ink-soft">
+                      {row.payment_count} paiement(s) {sinceLabel(row)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-tabular font-semibold text-ink">{formatAmount(row.expected_amount)}</span>
+                    <button type="button" onClick={() => setReceiving(row)} className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
+                      Recevoir la caisse
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {receiving && <ReceiveCashModal row={receiving} onClose={() => setReceiving(null)} onPrint={onPrint} />}
+    </>
+  );
+}
+
+/** Le directeur compte l'argent remis par le caissier et l'enregistre ; le bordereau s'imprime ensuite. */
+function ReceiveCashModal({ row, onClose, onPrint }: { row: PendingHandoverRow; onClose: () => void; onPrint: (id: number) => void }) {
+  const receive = useReceiveCash();
+  const [received, setReceived] = useState(String(row.expected_amount));
   const [note, setNote] = useState('');
-  const difference = counted === '' ? null : Math.round((Number(counted) - expected) * 100) / 100;
+  const [doneId, setDoneId] = useState<number | null>(null);
+  const difference = received === '' ? null : Math.round((Number(received) - row.expected_amount) * 100) / 100;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    await closeCash.mutateAsync({ counted_amount: Number(counted), note: note.trim() || undefined });
-    onClose();
+    const handover = await receive.mutateAsync({ cashier_user_id: row.cashier_id, received_amount: Number(received), note: note.trim() || undefined });
+    setDoneId(handover.id);
+  }
+
+  if (doneId) {
+    return (
+      <Modal title="Remise enregistrée" onClose={onClose} widthClassName="max-w-sm">
+        <p className="text-sm text-ink-soft">La remise de {row.cashier} est enregistrée. Imprimez le bordereau et faites-le signer par les deux parties.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">Fermer</button>
+          <button type="button" onClick={() => onPrint(doneId)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark">
+            <Printer className="h-4 w-4" /> Imprimer le bordereau
+          </button>
+        </div>
+      </Modal>
+    );
   }
 
   return (
-    <Modal title="Clôturer ma caisse du jour" onClose={onClose} widthClassName="max-w-md">
+    <Modal title={`Recevoir la caisse de ${row.cashier}`} onClose={onClose} widthClassName="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-lg bg-paper px-4 py-3 text-sm">
-          <p className="text-ink-soft">{count} paiement(s) enregistré(s) aujourd'hui</p>
-          <p className="font-tabular mt-1 text-lg font-semibold text-ink">{formatAmount(expected)} attendus</p>
+          <p className="text-ink-soft">
+            {row.payment_count} paiement(s) {sinceLabel(row)}, depuis sa dernière remise
+          </p>
+          <p className="font-tabular mt-1 text-lg font-semibold text-ink">{formatAmount(row.expected_amount)} attendus</p>
         </div>
         <label className="block text-sm">
-          <span className="font-medium text-ink">Montant compté en caisse (XOF)</span>
-          <input type="number" min={0} step="1" required autoFocus value={counted} onChange={(e) => setCounted(e.target.value)} className={`font-tabular ${inputClass}`} />
+          <span className="font-medium text-ink">Montant réellement reçu (XOF)</span>
+          <input type="number" min={0} step="1" required autoFocus value={received} onChange={(e) => setReceived(e.target.value)} className={`font-tabular ${inputClass}`} />
         </label>
         {difference !== null && (
           <p className={`text-sm font-medium ${difference === 0 ? 'text-success' : 'text-danger'}`}>
-            {difference === 0 ? 'La caisse est juste.' : `Écart : ${difference > 0 ? '+' : ''}${formatAmount(difference)} — expliquez-le ci-dessous.`}
+            {difference === 0 ? 'Le compte est juste.' : `Écart : ${difference > 0 ? '+' : ''}${formatAmount(difference)} — expliquez-le ci-dessous.`}
           </p>
         )}
         <label className="block text-sm">
           <span className="font-medium text-ink">Observation {difference !== null && difference !== 0 ? '(obligatoire)' : '(facultatif)'}</span>
           <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} required={difference !== null && difference !== 0} className={inputClass} />
         </label>
-        <p className="text-xs text-ink-soft">Après clôture, vous ne pourrez plus encaisser ni annuler de paiement aujourd'hui sans réouverture par l'administrateur.</p>
-        {closeCash.isError && <p className="text-sm text-danger">{getApiErrorMessage(closeCash.error)}</p>}
+        <p className="text-xs text-ink-soft">Une fois la remise enregistrée, ces paiements ne peuvent plus être annulés. Les encaissements suivants iront dans la prochaine remise.</p>
+        {receive.isError && <p className="text-sm text-danger">{getApiErrorMessage(receive.error)}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">Annuler</button>
-          <button type="submit" disabled={closeCash.isPending || counted === ''} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50">Clôturer</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function ReopenModal({ closing, onClose }: { closing: CashClosingRow; onClose: () => void }) {
-  const reopen = useReopenCash();
-  const [reason, setReason] = useState('');
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    await reopen.mutateAsync({ id: closing.id, reason: reason.trim() });
-    onClose();
-  }
-
-  return (
-    <Modal title="Rouvrir cette caisse ?" onClose={onClose} widthClassName="max-w-sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-ink-soft">
-          Caisse de {closing.cashier ?? '—'} du {formatDate(closing.closing_date, 'long')}. La réouverture est journalisée ; la clôture actuelle reste dans l'historique.
-        </p>
-        <label className="block text-sm">
-          <span className="font-medium text-ink">Motif</span>
-          <textarea rows={2} required minLength={5} autoFocus value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass} />
-        </label>
-        {reopen.isError && <p className="text-sm text-danger">{getApiErrorMessage(reopen.error)}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">Annuler</button>
-          <button type="submit" disabled={reopen.isPending || reason.trim().length < 5} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50">Rouvrir</button>
+          <button type="submit" disabled={receive.isPending || received === ''} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition hover:bg-primary-dark disabled:opacity-50">
+            Enregistrer la remise
+          </button>
         </div>
       </form>
     </Modal>

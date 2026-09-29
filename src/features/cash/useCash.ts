@@ -24,20 +24,35 @@ export interface CashReportClass {
   }[];
 }
 
-export interface CashClosingRow {
+/** Remise de caisse : le caissier remet au directeur l'argent encaissé depuis sa dernière remise. */
+export interface CashHandoverRow {
   id: number;
-  closing_date: string;
   cashier_id: number;
   cashier: string | null;
+  received_by: string | null;
   payment_count: number;
   expected_amount: number;
-  counted_amount: number;
+  received_amount: number;
   difference: number;
   note: string | null;
-  closed_at: string;
-  reopened_at: string | null;
-  reopened_by: string | null;
-  reopen_reason: string | null;
+  created_at: string;
+}
+
+export interface CashHandoverDetail extends CashHandoverRow {
+  payments: { reference_code: string; payment_date: string; student: string | null; class: string | null; amount: number }[];
+}
+
+/** Argent encaissé par un caissier et pas encore remis. */
+export interface PendingCash {
+  payment_count: number;
+  expected_amount: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export interface PendingHandoverRow extends PendingCash {
+  cashier_id: number;
+  cashier: string;
 }
 
 export interface CashCancellation {
@@ -62,8 +77,8 @@ export interface CashReport {
   by_day: { date: string; payment_count: number; total_amount: number }[];
   by_line: { label: string; total_amount: number }[];
   cancellations: CashCancellation[];
-  closings: CashClosingRow[];
-  my_day: { date: string; payment_count: number; expected_amount: number; closed: boolean };
+  handovers: CashHandoverRow[];
+  my_pending: PendingCash;
 }
 
 export function useCashReport(from: string, to: string) {
@@ -73,27 +88,25 @@ export function useCashReport(from: string, to: string) {
   });
 }
 
-function useInvalidateCash() {
+export function usePendingHandovers(enabled: boolean) {
+  return useQuery({
+    queryKey: ['cash', 'pending'],
+    enabled,
+    queryFn: async () => (await apiClient.get<PendingHandoverRow[]>('/cash/pending')).data,
+  });
+}
+
+export function useReceiveCash() {
   const queryClient = useQueryClient();
-  return () => {
-    for (const key of ['cash', 'payments']) queryClient.invalidateQueries({ queryKey: [key] });
-  };
-}
-
-export function useCloseCash() {
-  const invalidate = useInvalidateCash();
   return useMutation({
-    mutationFn: async (payload: { counted_amount: number; note?: string }) =>
-      (await apiClient.post('/cash/closings', payload)).data,
-    onSuccess: invalidate,
+    mutationFn: async (payload: { cashier_user_id: number; received_amount: number; note?: string }) =>
+      (await apiClient.post<CashHandoverDetail>('/cash/handovers', payload)).data,
+    onSuccess: () => {
+      for (const key of ['cash', 'payments', 'dashboard']) queryClient.invalidateQueries({ queryKey: [key] });
+    },
   });
 }
 
-export function useReopenCash() {
-  const invalidate = useInvalidateCash();
-  return useMutation({
-    mutationFn: async ({ id, reason }: { id: number; reason: string }) =>
-      (await apiClient.post(`/cash/closings/${id}/reopen`, { reason })).data,
-    onSuccess: invalidate,
-  });
+export async function fetchHandover(id: number): Promise<CashHandoverDetail> {
+  return (await apiClient.get<CashHandoverDetail>(`/cash/handovers/${id}`)).data;
 }

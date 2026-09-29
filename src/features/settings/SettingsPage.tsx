@@ -136,7 +136,8 @@ export default function SettingsPage() {
               <span className="text-xs text-ink-soft">Aucune image</span>
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          {/* Changer l'en-tête demande « paramètres établissement » : sinon, simple consultation. */}
+          {canManageYears && <div className="flex flex-col gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelected} />
             <button
               type="button"
@@ -159,7 +160,7 @@ export default function SettingsPage() {
             )}
             <p className="text-[11px] text-ink-soft">PNG ou JPG, 2 Mo maximum.</p>
             {letterheadError && <p className="text-xs font-medium text-danger">{letterheadError}</p>}
-          </div>
+          </div>}
         </div>
       </article>
 
@@ -174,6 +175,7 @@ export default function SettingsPage() {
           .
         </p>
 
+        {canManageYears && (
         <form onSubmit={handleCreateYear} className="mt-3 flex flex-wrap items-end gap-3">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-ink-soft">Nouvelle année</label>
@@ -193,6 +195,7 @@ export default function SettingsPage() {
             Ajouter
           </button>
         </form>
+        )}
         {yearError && <p className="mt-2 text-xs text-danger">{yearError}</p>}
 
         <div className="mt-4 divide-y divide-border rounded-lg border border-border">

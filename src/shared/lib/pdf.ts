@@ -34,8 +34,12 @@ export async function downloadTeacherAnnualSummaryPdf(...args: Parameters<typeof
   return (await load()).downloadTeacherAnnualSummaryPdf(...args);
 }
 
-export async function downloadReminderLettersPdf(...args: Parameters<typeof Documents.downloadReminderLettersPdf>) {
-  return (await load()).downloadReminderLettersPdf(...args);
+export async function downloadGeneralNoticePdf(...args: Parameters<typeof Documents.downloadGeneralNoticePdf>) {
+  return (await load()).downloadGeneralNoticePdf(...args);
+}
+
+export async function downloadHandoverPdf(...args: Parameters<typeof Documents.downloadHandoverPdf>) {
+  return (await load()).downloadHandoverPdf(...args);
 }
 
 export async function downloadTimetablePdf(...args: Parameters<typeof Documents.downloadTimetablePdf>) {

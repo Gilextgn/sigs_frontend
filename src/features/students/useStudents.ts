@@ -44,7 +44,7 @@ export interface NewStudentPayload {
   };
 }
 
-export function useStudents(params: { search?: string; classId?: number | ''; status?: string }, enabled = true) {
+export function useStudents(params: { search?: string; classId?: number | ''; status?: string; perPage?: number }, enabled = true) {
   return useQuery({
     queryKey: ['students', params],
     enabled,
@@ -54,6 +54,7 @@ export function useStudents(params: { search?: string; classId?: number | ''; st
           search: params.search || undefined,
           class_id: params.classId || undefined,
           status: params.status || undefined,
+          per_page: params.perPage || undefined,
         },
       });
       return data;

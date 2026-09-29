@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
   BarChart3,
+  Building2,
   BellRing,
   BookOpen,
   CalendarCog,
@@ -35,6 +36,8 @@ export interface NavItem {
   permission?: string;
   /** Compteur affiché à droite du libellé (travail en attente). */
   badge?: 'reenrollments' | 'debtors';
+  /** Réservé au directeur d'un groupe scolaire (plusieurs sites). */
+  multiSite?: boolean;
   children?: NavItem[];
 }
 
@@ -45,6 +48,7 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { code: 'home', label: 'Accueil', path: '/', icon: House, permission: 'dashboard.view' },
+  { code: 'sites', label: 'Vue des sites', path: '/sites', icon: Building2, permission: 'dashboard.view', multiSite: true },
   {
     code: 'rentree',
     label: 'Rentrée',

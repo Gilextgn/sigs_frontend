@@ -21,6 +21,8 @@ export interface CurrentUser {
   school: CurrentSchool | null;
   /** Mot de passe temporaire remis par la plateforme : à remplacer avant tout. */
   must_change_password?: boolean;
+  /** Sites du groupe scolaire accessibles : plus d'un pour le directeur d'un groupe. */
+  sites?: { id: number; label: string }[];
 }
 
 export interface SuspensionInfo {

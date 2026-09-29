@@ -371,7 +371,7 @@ export function SchoolDetailModal({
   const update = useUpdateSchool();
   const resetPassword = useResetAdminPassword();
   const updateAdmin = useUpdateSchoolAdmin();
-  const [draft, setDraft] = useState<{ name: string; due: string; auto: boolean; grace: number } | null>(null);
+  const [draft, setDraft] = useState<{ name: string; due: string; auto: boolean; grace: number; group: string; site: string } | null>(null);
   const [editingAdmin, setEditingAdmin] = useState<{ id: number; full_name: string; email: string } | null>(null);
   const [reset, setReset] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -381,14 +381,18 @@ export function SchoolDetailModal({
     due: school?.subscription_due_at ?? '',
     auto: school?.auto_suspend ?? false,
     grace: school?.grace_days ?? 0,
+    group: school?.group_code ?? '',
+    site: school?.site_label ?? '',
   };
   // Seuls les champs modifiés partent au serveur : l'historique ne note que les vrais changements.
-  const changes: { name?: string; subscription_due_at?: string | null; auto_suspend?: boolean; grace_days?: number } = {};
+  const changes: { name?: string; subscription_due_at?: string | null; auto_suspend?: boolean; grace_days?: number; group_code?: string | null; site_label?: string | null } = {};
   if (draft && school) {
     if (draft.name.trim() && draft.name.trim() !== school.name) changes.name = draft.name.trim();
     if (draft.due !== (school.subscription_due_at ?? '')) changes.subscription_due_at = draft.due || null;
     if (draft.auto !== school.auto_suspend) changes.auto_suspend = draft.auto;
     if (draft.grace !== school.grace_days) changes.grace_days = draft.grace;
+    if (draft.group.trim().toUpperCase() !== (school.group_code ?? '')) changes.group_code = draft.group.trim() || null;
+    if (draft.site.trim() !== (school.site_label ?? '')) changes.site_label = draft.site.trim() || null;
   }
   const dirty = Object.keys(changes).length > 0;
   const due = dueLabel(school?.subscription_due_at ?? null);
@@ -488,6 +492,14 @@ export function SchoolDetailModal({
               <Block label="Nom dans la console" hint="Le nom imprimé par l'école sur ses documents reste réglé dans ses propres paramètres.">
                 <input required maxLength={160} value={values.name} onChange={(e) => setDraft({ ...values, name: e.target.value })} className={inputClass} />
               </Block>
+              <Block label="Groupe scolaire (plusieurs sites)" hint="Même code sur chaque site d'un même directeur (ex. LAUREATS) : ses administrateurs passent d'un site à l'autre et voient la vue des sites. Vide = établissement seul.">
+                <input maxLength={60} value={values.group} onChange={(e) => setDraft({ ...values, group: e.target.value })} placeholder="LAUREATS" className={`${inputClass} uppercase`} />
+              </Block>
+              {values.group.trim() && (
+                <Block label="Nom du site" hint="Affiché dans le sélecteur de site (ex. Collège, Maternelle / Primaire).">
+                  <input maxLength={80} value={values.site} onChange={(e) => setDraft({ ...values, site: e.target.value })} placeholder="Collège" className={inputClass} />
+                </Block>
+              )}
               <Block label="Échéance" hint={school.subscription_due_at ? `${formatDate(school.subscription_due_at, 'long')} · ${due.text}` : undefined}>
                 <input type="date" value={values.due} onChange={(e) => setDraft({ ...values, due: e.target.value })} className={inputClass} />
                 <DateShortcuts onPick={(iso) => setDraft({ ...values, due: iso })} />
